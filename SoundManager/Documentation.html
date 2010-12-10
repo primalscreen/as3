@@ -1,0 +1,235 @@
+<html>
+	<head>
+		<title>Primal Screen Actionscript Sound Manager Class Documentation</title>
+	</head>
+	
+	<style>
+		
+		body {
+			font-family: Verdana, Helvetica, Arial, sans-serif;
+			font-size: 9pt;
+		}
+		
+		#container {
+			width: 700px;
+			margin: auto;
+			padding-top: 20px;
+			padding-bottom: 100px;
+		}
+		
+		h1 {
+			font-size: 20pt;
+			margin-bottom: -20px;
+			color: #205F87;
+		}
+		h2 {
+			font-size: 15pt;
+			padding-top: 40px;
+			color: #205F87;
+		}
+		h3 {
+			font-size: 12pt;
+			padding-top: 20px;
+			color: #205F87;
+		}
+		
+		pre {
+			background-color: #E4F1F3;
+			border: 1px dashed #91B9BE;
+			padding: 10px;
+			overflow: auto;
+		}
+		.fakepre {
+			color: #205F87;
+			font-family: monospace;
+		}
+		a {
+			color: #205F87;
+			text-decoration: none;
+		}
+		a:hover {
+			color: black;
+			text-decoration: underline;
+		}
+		li {
+			padding-bottom: 10px;
+		}
+		
+	</style>
+	
+	
+	<body>
+
+
+<div id="container">
+<h1>Primal Screen Sound Manager Documentation</h1>
+
+
+<h2>Installation</h2>
+<p>Put the <span class="fakepre">com.primalscreen.soundmanager.SoundManager</span> package and the BulkLoader package 
+files in your classpath. Keep the <span class="fakepre">com.primalscreen</span>... and 
+<span class="fakepre">br.com.stimuli</span>... folder structures.</p>
+<p>If it didn't come with this file, you can <a href="http://code.google.com/p/bulk-loader/">BulkLoader here</a>.</p>
+	
+<p>Then instantiate like this (it's a singleton, you can't just use <span class="fakepre">new SoundManager()</span>):</p>
+<pre>
+// in the package
+import com.primalscreen.soundmanager.SoundManager;
+
+// in the class
+var soundManager;
+
+// in your constructor
+soundManager = SoundManager.getInstance(false);
+</pre>
+<p>The boolean in the getInstance function sets whether you want it in verbose, fill-the-output-window-right-up, mode. It's on by default.</p>
+	
+<h2>Usage</h2>
+<h3 style="margin-top:-20px;">playSound()</h3>
+<p>Now that you have a singleton instance called soundManager, let's play a sound:</p>
+<pre>soundManager.playSound("assets/testaudio.mp3");</pre>
+<p>This is the simplest example. It loads the mp3 with bulkloader and plays it when ready. There are 
+several other properties of the playSound function. In order they are:</p>
+	
+<ul>
+	<li><strong>Source</strong> <em>(String/Array):</em> the filename, or array of filenames you want to load 
+	and play. Within the array should only be strings and numbers, numbers will interpretted as gaps between 
+	the sounds, in milliseconds.</li>
+	<li><strong>Event</strong> <em>(String):</em> The event you want the SoundManager to dispatch when this 
+	sound finishes.</li>
+	<li><strong>Channel</strong> <em>(String):</em> The name of the channel you want to play the sound on. 
+	These aren't real SoundChannels, think of it like if there's a sound playing on channel A, and you play 
+	another one on that same channel, it will stop the first sound and play the second. </li>
+	<li><strong>Interrupt</strong> <em>(Boolean):</em> Sets whether a sound played on the same channel (above) 
+	should interrupt an already playing sound. If false, the sounds will play over one another- not good for dialogue.</li>
+	<li><strong>Volume</strong> <em>(Number):</em> 0 is muted, 1 is normal volume.</li>
+	<li><strong>Loop</strong> <em>(Number):</em> Number of times to loop the sound. 0 is infinite, 1 is default.</li>
+</ul>
+<p>So a much more complicated example might be:</p>
+<pre>
+soundManager.playSound("assets/testaudio.mp3", "TEST_AUDIO_PLAYED", "sound_effects_channel", 
+true, 0.5, 2, 2500);
+</pre>
+<p>Which would make the file, <em>testaudio.mp3</em>, load, wait 2.5 seconds, then play twice at half volume on the sound_effects_channel, interrupting anything else on that channel. 
+
+<h3>Special cases in playSound()'s source property</h3>
+<p>The first property sent to <span class="fakepre">playSound()</span> is very dynamic. The simplest example you've already seen is sending it a 
+string, the filename you want to play. But if you want to play a sequence of sounds, in order, one after the other,
+you can send it an array:</p>
+<pre>
+playSound(new Array("filename1.mp3", "filename2.mp3", "filename3.mp3"));
+</pre>
+<p>Or if you want to build the sequence using some logic of your own, you might want to build the array separately:</p>
+<pre>
+var seq = new Array();
+seq.push("filename1.mp3");
+var r = Math.random()*2;
+if (r > 1) {seq.push("filename2.mp3");} else {seq.push("filename3.mp3");}
+playSound(seq);
+</pre>
+<p>The above example would play <em>filename1.mp3</em>, then, using <span class="fakepre">Math.random()</span> to generate a random choice, it picks either <em>filename2.mp3</em> or <em>filename3.mp3</em> and play it.</p>
+<p>So what if you want a pause between audio files within a sequence. Simple, just put a number in your sequence array, instead of a string.</p>
+<pre>
+playSound(new Array("filename1.mp3", 500, "filename2.mp3", 500, "filename3.mp3"));
+</pre>
+<p>The above example will play the three files in order, but will pause for half a second (500 milliseconds) between them.
+
+
+
+
+<h3>Other functions:</h3>
+Many of these functions need an id property to work. That's the id of the sound, and it's return as a Number by the playSound function. If you know 
+you'll need to refer back to a sound later, to stop it or change it's volume, do this:
+<pre>
+var mySound = playSound("filename.mp3");
+</pre> 
+<ul>
+	<li>
+		<span class="fakepre">setPath("asset/sounds/");</span><br>
+		Sets the location, relative to the document root, of the files you're trying to load. Make sure you leave a <span class="fakepre">/</span> at the end.
+	</li>
+	<li>
+		<span class="fakepre">setVolume(id, volume);</span><br>
+		Sets the volume of a given sound, by it's ID (which is returned by playSound(), as mentioned above).
+	</li>
+	<li>
+		<span class="fakepre">stopSound(id);</span><br>
+		Stops the selected sound by it's ID (which is returned by playSound(), as mentioned above).
+	</li>
+	<li>
+		<span class="fakepre">stopAllSounds();</span><br>
+		Stops all sounds. Every single one.
+	</li>
+	<li>
+		<span class="fakepre">stopChannel("channel_name");</span><br>
+		Stops all sounds that are playing on the given channel.
+	</li>
+	<li>
+		<span class="fakepre">preload("filename", "MY_PRELOAD_EVENT");</span> or<br>
+		<span class="fakepre">preload(new Array("filename1", "filename2"), "MY_PRELOAD_EVENT");</span><br>
+		Where second property is a string, the name of the event that SoundManager dispatches when the files are preloaded.
+	</li>
+</ul>
+
+<h3>Other helpful code snippets:</h3>
+<p>Listening for the end of a sound</p>
+<pre>
+soundManager.playSound("assets/testaudio.mp3", "MY_SOUND_PLAYED");
+soundManager.addEventListener("MY_SOUND_PLAYED", soundPlayedHandler);
+</pre>
+<p>Listening for a file/files to be preloaded</p>
+<pre>
+soundManager.preload("filename.mp3", "FILENAME_LOADED");
+soundManager.addEventListener("FILENAME_LOADED", soundLoadedHandler);
+function soundLoadedHandler(e) { /* executed when file is loaded */ }
+</pre>
+<p>Stopping a specific sound (you have to capture it's returned ID first)</p>
+<pre>
+var mySoundID = playSound("filename.mp3");
+stopSound(mySoundID);
+</pre>
+
+
+
+<h2>License and Credits</h2>
+<p>Primal Screen Actionscript Sound Manager Class</p>
+	
+<p>The MIT License</p>
+	
+<p>Copyright (c) 2010 Primal Screen Inc.</p>
+	
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:</p>
+	
+<p>The above copyright notice and this permission notice shall be included in
+	all copies or substantial portions of the Software.</p>
+	
+<p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+	THE SOFTWARE.</p>
+
+<p>BulkLoader is also MIT Licensed, see it's terms <a href="http://code.google.com/p/bulk-loader/">here</a>.</p>
+
+</div>
+	
+	</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
