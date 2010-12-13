@@ -101,7 +101,7 @@ several other properties of the playSound function. In order they are:</p>
 	These aren't real SoundChannels, think of it like if there's a sound playing on channel A, and you play 
 	another one on that same channel, it will stop the first sound and play the second. </li>
 	<li><strong>Interrupt</strong> <em>(Boolean):</em> Sets whether a sound played on the same channel (above) 
-	should interrupt an already playing sound. If false, the sounds will play over one another- not good for dialogue.</li>
+	should interrupt an already playing sound. If false, the first sound will continue, the second will be dropped.</li>
 	<li><strong>Volume</strong> <em>(Number):</em> 0 is muted, 1 is normal volume.</li>
 	<li><strong>Loop</strong> <em>(Number):</em> Number of times to loop the sound. 0 is infinite, 1 is default.</li>
 </ul>

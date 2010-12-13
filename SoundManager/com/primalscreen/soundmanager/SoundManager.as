@@ -1,3 +1,5 @@
+// interrupts aren't working
+
 package com.primalscreen.soundmanager {
 	
 	/*
@@ -64,10 +66,10 @@ package com.primalscreen.soundmanager {
 		private static var queueInterval:Number;
 		private var SoundLoader: BulkLoader;
 		private var queue:Array = new Array();
-		private var realSoundChannels:Object = new Object();
-		private var fakeSoundChannels:Object = new Object();
+		private var soundChannels:Object = new Object();
 		private var soundIDCounter = 0;
 		private var sequences:Object = new Object();
+		private var timeouts:Object = new Object();
 		
 		
 		public function SoundManager():void {
@@ -94,17 +96,25 @@ package com.primalscreen.soundmanager {
 		
 		
 		
-		public function playSound(sound, event = null, fakechannel = null, interrupt = true, volume = 1, loop = 1) {
+		public function playSound(sound, event = null, soundchannel = null, interrupt = true, volume = 1, loop = 1) {
+			
+			if (verbose) {trace("SOUND:      Playing " + sound + " on channel " + soundchannel + " with id " + soundIDCounter);};
 			
 			var newSound:Object 	= new Object();
-			newSound.id				= soundIDCounter; soundIDCounter++;
+			newSound.id				= soundIDCounter;
 			newSound.source 		= sound;
-			newSound.fakechannel 	= fakechannel;
+			if (soundchannel) {
+				newSound.soundchannel = soundchannel;
+			} else {
+				newSound.soundchannel = "soundchannel" + soundIDCounter;
+			}
 			newSound.interrupt 		= interrupt;
 			newSound.volume 		= volume;
 			newSound.loop 			= loop;
 			newSound.event 			= event;
 			newSound.played			= false;
+			
+			soundIDCounter++;
 			
 			if (sound is Array && !sequences.hasOwnProperty(newSound.id)) {
 				// if it's a sound sequence, and this is the first we've heard of it, 
@@ -113,10 +123,13 @@ package com.primalscreen.soundmanager {
 			}
 			
 			
-									
-			queue.push(newSound);
-			checkQueue();
 			
+			if (!soundChannels[newSound.soundchannel] || interrupt) {
+				queue.push(newSound);
+				checkQueue();
+			} else {
+				if (verbose) {trace("SOUND:      It's way too noisy in here.");};
+			}
 			
 			return newSound.id;
 		}
@@ -126,44 +139,54 @@ package com.primalscreen.soundmanager {
 			for (var key in queue) {
 				var played;
 				var source;
-				var realChannel;
-				var fakeChannel;
+				var soundChannel;
 				var interrupt;
 				var volume;
 				var sequence;
 				var s;
 				var v:SoundTransform;
 				
+				
+				
 				if (queue[key].played == false) {
 					if (queue[key].source is String) {
 						// START OF PLAYING A SINGLE SOUND
 						if (SoundLoader.getContent(queue[key].source)) {
 							// it's loaded, play it
+							
+							
 							source = queue[key].source;
-							realChannel = "soundchannel" + queue[key].id;
-							fakeChannel = queue[key].fakechannel;
+							soundChannel = queue[key].soundchannel;
+							
 							interrupt = queue[key].interrupt;
 							volume = queue[key].volume;
 							
-							if (!fakeSoundChannels[fakeChannel] || interrupt) {
-								
-								// if fakechannel doesnt already exist, make it, and play
-								realSoundChannels[realChannel] = new SoundChannel();
-								fakeSoundChannels[fakeChannel] = realSoundChannels[realChannel];
-								
-								s = SoundLoader.getContent(source);
-								realSoundChannels[realChannel] = s.play();
-								realSoundChannels[realChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler);
-								
-								v = new SoundTransform(volume);
-								realSoundChannels[realChannel].soundTransform = v;
-								
-								played = true;
-								
-							} else {
-								if (verbose) {trace("SOUND:      Tried to play audio on a full channel, with interrupt set to false.");};
-								played = true;
+							
+							if (interrupt) {
+								for (var x in queue){
+									if (queue[x].soundchannel == soundChannel && queue[x].id != queue[key].id) {
+										if (soundChannels[soundChannel]) {soundChannels[soundChannel].stop();};
+										delete(soundChannels[soundChannel]);
+										delete(queue[x]);
+										if (verbose) {trace("SOUND:      Interrupting");};
+									}
+								};
 							}
+							
+							
+							// sound playing bit
+							soundChannels[soundChannel] = new SoundChannel();
+							
+							s = SoundLoader.getContent(source);
+							soundChannels[soundChannel] = s.play();
+							soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler);
+							
+							v = new SoundTransform(volume);
+							soundChannels[soundChannel].soundTransform = v;
+							
+							played = true;
+							// end sound playing bit
+							
 							
 						} else {
 							// it's not yet loaded, load it
@@ -178,49 +201,60 @@ package com.primalscreen.soundmanager {
 						if (queue[key].source[0] is Number) {
 							// delay
 							played = true;
+							if (timeouts[queue[key].soundchannel]) {
+								clearTimeout(timeouts[queue[key].soundchannel]);
+							}
+							timeouts[queue[key].soundchannel] = setTimeout(delayComplete, queue[key].source[0], queue[key]);
 							
-							setTimeout(delayComplete, queue[key].source[0], "soundchannel" + queue[key].id);
 							
 						} else {
 							// sound
 							if (SoundLoader.getContent(queue[key].source[0])) {
 								// it's loaded, play it
 								source = queue[key].source[0];
-								realChannel = "soundchannel" + queue[key].id;
-								fakeChannel = queue[key].fakechannel;
+								soundChannel = queue[key].soundchannel;
+								
 								interrupt = queue[key].interrupt;
 								volume = queue[key].volume;
 								
-								if (!fakeSoundChannels[fakeChannel] || interrupt) {
-									
-									// if fakechannel doesnt already exist, make it, and play
-									realSoundChannels[realChannel] = new SoundChannel();
-									fakeSoundChannels[fakeChannel] = realSoundChannels[realChannel];
-									
-									s = SoundLoader.getContent(source);
-									realSoundChannels[realChannel] = s.play();
-									realSoundChannels[realChannel].addEventListener(Event.SOUND_COMPLETE, soundSequencePartCompleteEventHandler);
-									
-									v = new SoundTransform(volume);
-									realSoundChannels[realChannel].soundTransform = v;
-									
-									played = true;
-									
-								} else {
-									if (verbose) {trace("SOUND:      Tried to play audio on a full channel, with interrupt set to false.");};
-									played = true;
+								
+								if (interrupt) {
+									for (var u in queue){
+										if (queue[u].soundchannel == soundChannel && queue[u].id != queue[key].id) {
+											if (soundChannels[soundChannel]) {soundChannels[soundChannel].stop();};
+											delete(soundChannels[soundChannel]);
+											delete(queue[u]);
+											if (verbose) {trace("SOUND:      Interrupting");};
+											
+										}
+									};
 								}
+								
+								// sound playing bit
+								soundChannels[soundChannel] = new SoundChannel();
+								
+								s = SoundLoader.getContent(source);
+								soundChannels[soundChannel] = s.play();
+								soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundSequencePartCompleteEventHandler);
+								
+								v = new SoundTransform(volume);
+								soundChannels[soundChannel].soundTransform = v;
+								
+								played = true;
+								// end sound playing bit
+								
 								
 							} else {
 								// it's not yet loaded, load it
-								for (var x in queue[key].source){
-									if (queue[key].source[x] is String) {
-										SoundLoader.add(root + queue[key].source[x]);
+								for (var w in queue[key].source){
+									if (queue[key].source[w] is String) {
+										SoundLoader.add(root + queue[key].source[w]);
 									}
 								};
 								SoundLoader.start();
 							}
-						}	
+						}
+						
 						// END OF PLAYING A SOUND SEQUENCE
 					}
 					
@@ -234,38 +268,47 @@ package com.primalscreen.soundmanager {
 		
 		private function soundCompleteEventHandler(e) {
 			// destroy the sound channel
-			var soundID;
-			for (var x in realSoundChannels) {
-				if (realSoundChannels[x] === e.currentTarget) {
-					soundID = x.substring(12,16);
+			var soundChannel;
+			for (var x in soundChannels) {
+				if (soundChannels[x] === e.currentTarget) {
+					soundChannel = x;
 				}
 			}
-			
-			soundFinished(soundID);
+			soundFinished(soundChannel);
 		}
 		
 		
-		private function soundFinished(soundID) {
+		private function soundFinished(soundChannel) {
+			
+			
+			// find the soundID
+			var soundID;
+			for (var x in queue) {
+				if (queue[x].soundchannel == soundChannel) {
+					soundID = queue[x].id;
+				}
+			}
+			
+			
 			if (verbose) {trace("SOUND:      Sound finished: " + soundID);};
 			
-			for (var x in queue) {
-				if (queue[x].id == soundID) {
-					var s = queue[x];
+			for (var y in queue) {
+				if (queue[y].id == soundID) {
+					var s = queue[y];
 					// dispatch the end event, if requested
 					if (s.event != null && s.event is String) {
 						if (verbose) {trace("SOUND:      Dispatching event: '" + s.event + "'");};
 						dispatchEvent(new Event(s.event, true));
 					}
 					// kill the real sound channel
-					delete(realSoundChannels["soundchannel" + s.id]);// = null;
-					// kill the fake sound channel
-					delete(fakeSoundChannels[s.fakechannel]);// = null;
+					delete(soundChannels[soundChannel]);// = null;
+					
 					// and take the sound out of the queue, unless it's meant to loop, in which case, set it back to unplayed
 					if (s.loop > 1 || s.loop == 0) {
 						s.played = false;
 						if (s.loop > 1) {s.loop--;};
 					} else {
-						delete(queue[x]);
+						delete(queue[y]);
 					}
 				}
 			}
@@ -274,63 +317,83 @@ package com.primalscreen.soundmanager {
 		
 		
 		
-		private function delayComplete(realChannel) {
-			var soundID = realChannel.substring(12,16);
-			soundSequencePartFinished(soundID);
+		private function delayComplete(sound) {
+			sound.source.shift();
+			sound.played = false;
+						
 		}
 		
 		private function soundSequencePartCompleteEventHandler(e) {
-			// destroy the sound channel
-			var soundID;
-			for (var x in realSoundChannels) {
-				if (realSoundChannels[x] === e.currentTarget) {
-					soundID = x.substring(12,16);
+			
+			var soundChannel;
+			for (var x in soundChannels) {
+				if (soundChannels[x] === e.currentTarget) {
+					soundChannel = x;
 				}
 			}
 			
-			soundSequencePartFinished(soundID);
+			soundSequencePartFinished(soundChannel);
 		}
 		
-		private function soundSequencePartFinished(soundID) {
-			if (verbose) {trace("SOUND:      Sound finished: " + soundID);};
+		
+		private function soundSequencePartFinished(soundChannel) {
 			
+			// check to see if the sound has been stopped or interrupted
+			var stillGoing;
 			for (var x in queue) {
-				if (queue[x].id == soundID) {
-					var s = queue[x];
-					// remove the first item from the sound sequence
-					s.source.shift();
-					
-					// dispatch the end event, if requested
-					if (s.source.length == 0 && s.event != null && s.event is String) {
-						if (verbose) {trace("SOUND:      Dispatching event: '" + s.event + "'");};
-						dispatchEvent(new Event(s.event, true));
-					}
-					// kill the real sound channel
-					delete(realSoundChannels["soundchannel" + s.id]);
-					// kill the fake sound channel
-					delete(fakeSoundChannels[s.fakechannel]);
-					
-					
-					if (s.source.length == 0) {
-						if (s.loop == 1) {
-							// out of parts and not meant to loop
-							delete(queue[x].source);
-						} else if (s.loop == 0) {
-							// out of parts, meant to be looping infinately
-							// so go get the saved sequence from the sequences database 
-							queue[x].source = sequences[s.id].concat();
-							queue[x].played = false;
-						} else {
-							// out of parts, meant to be looping but limited
-							s.loop--;
-							queue[x].source = sequences[s.id].concat();
-							queue[x].played = false;
-						}
-					} else {
-						queue[x].played = false;
-					}
-					
+				if (queue[x].soundchannel == soundChannel) {
+					stillGoing = true;
 				}
+			}
+			
+			
+			// if the sound channel still exists
+			if (stillGoing) {
+				
+				// find the soundID
+				var soundID;
+				for (var z in queue) {
+					if (queue[z].soundchannel == soundChannel) {
+						soundID = queue[z].id;
+					}
+				}
+				
+				if (verbose) {trace("SOUND:      Sound finished: " + soundID);};
+				
+				
+				for (var y in queue) {
+					if (queue[y].id == soundID) {
+						var s = queue[y];
+						// remove the first item from the sound sequence
+						s.source.shift();
+						
+						// dispatch the end event, if requested
+						if (s.source.length == 0 && s.event != null && s.event is String) {
+							if (verbose) {trace("SOUND:      Dispatching event: '" + s.event + "'");};
+							dispatchEvent(new Event(s.event, true));
+						}
+						// kill the sound channel
+						delete(soundChannels[soundChannel]);
+						
+						
+						if (s.source.length == 0) {
+							if (s.loop == 1) {
+								// out of parts and not meant to loop
+								delete(queue[y]);
+							} else {
+								// out of parts, meant to be looping infinately
+								// so go get the saved sequence from the sequences database 
+								queue[y].source = sequences[s.id].concat();
+								queue[y].played = false;
+								if (queue[y].loop > 1) {queue[y].loop--;};
+							}
+						} else {
+							queue[y].played = false;
+						}
+						
+					}
+				}
+			
 			}
 		}
 		
@@ -351,15 +414,12 @@ package com.primalscreen.soundmanager {
 			
 			if (s) {
 				// kill the real sound channel
-				if (realSoundChannels["soundchannel" + s.id]) {
-					realSoundChannels["soundchannel" + s.id].stop();
-					delete(realSoundChannels["soundchannel" + s.id]);
+				if (soundChannels[s.soundChannel]) {
+					soundChannels[s.soundChannel].stop();
+					delete(soundChannels[s.soundChannel]);
 				}
 				
-				// kill the fake sound channel
-				if (fakeSoundChannels[s.fakechannel]) {
-					delete(fakeSoundChannels[s.fakechannel]);
-				}
+				
 				
 			}
 		}
@@ -372,61 +432,57 @@ package com.primalscreen.soundmanager {
 				delete(queue[x]);
 			}
 			
-			for (var y in realSoundChannels) {
-				realSoundChannels[y].stop();
+			for (var y in soundChannels) {
+				soundChannels[y].stop();
 			}
-			realSoundChannels = new Object();
-			
-			fakeSoundChannels = new Object();
-			
-			
+			soundChannels = new Object();
+						
 		}
 		
 		
-		public function stopChannel(fakechannel) {
-			if (verbose) {trace("SOUND:      Stopping sounds on channel: "+fakechannel);};
+		public function stopChannel(soundchannel) {
+			if (verbose) {trace("SOUND:      Stopping sounds on channel: "+soundchannel);};
 			
 			var s;
 			
-			if (fakeSoundChannels.hasOwnProperty(fakechannel)) {
+			if (soundChannels.hasOwnProperty(soundchannel)) {
 				for (var x in queue) {
-					if (queue[x].fakechannel == fakechannel) {
+					if (queue[x].soundchannel == soundchannel) {
 						s = queue[x];
 						delete(queue[x]);
 					}
 				}
 				
 				
-				for (var y in realSoundChannels) {
-					if (x == "soundchannel" + s.id) {
-						realSoundChannels[y].stop();
-						delete(realSoundChannels[y]);
+				for (var y in soundChannels) {
+					if (x == s.soundChannels) {
+						soundChannels[y].stop();
+						delete(soundChannels[y]);
 					}
 				}
 				
-				for (var z in fakeSoundChannels) {
-					if (z == s.fakechannel) {
-						delete(fakeSoundChannels[z]);
-					}
-				}
 			}
 			
 			
 		}
 		
 		public function setVolume(id, vol = 1) {
-			
-			// adjust the volume if it's currently playing
-			if (realSoundChannels.hasOwnProperty("soundchannel" + id)) {
-				var newVol:SoundTransform = new SoundTransform(vol); 
-				realSoundChannels["soundchannel" + id].soundTransform = newVol;
-			}
-			// and adjust the volume on the sound object itself, for future plays
+
+			// find the sound
+			var s;
 			for (var x in queue) {
 				if (queue[x].id == id) {
-					queue[x].volume = vol;
+					s = queue[x];
 				}
 			}
+			
+			// adjust the volume if it's currently playing
+			if (soundChannels.hasOwnProperty(s.soundChannel)) {
+				var newVol:SoundTransform = new SoundTransform(vol); 
+				soundChannels[s.soundChannel].soundTransform = newVol;
+			}
+			// and adjust the volume on the sound object itself, for future plays
+			s.volume = vol;
 		}
 		
 		
