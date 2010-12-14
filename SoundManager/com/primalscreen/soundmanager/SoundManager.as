@@ -43,13 +43,13 @@ package com.primalscreen.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version = "beta 0.2";
+		private const version = "beta 0.3";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
 		private static var allowInstantiation:Boolean;
 		
-		public static function getInstance(v = true, q = 25):SoundManager {
+		public static function getInstance(v = true, q = 150):SoundManager {
 			
 			verbose = v;
 			queueInterval = q;
@@ -139,6 +139,7 @@ package com.primalscreen.soundmanager {
 		private function checkQueue(e = null) {
 			
 			for (var key in queue) {
+				
 				var played;
 				var source;
 				var soundChannel;
@@ -151,13 +152,15 @@ package com.primalscreen.soundmanager {
 				
 				
 				if (queue[key].played == false) {
+					
 					if (queue[key].source is String) {
+						
 						// START OF PLAYING A SINGLE SOUND
-						if (SoundLoader.getContent(queue[key].source)) {
+						if (SoundLoader.getContent(root + queue[key].source)) {
 							// it's loaded, play it
 							
 							
-							source = queue[key].source;
+							source = root + queue[key].source;
 							soundChannel = queue[key].soundchannel;
 							
 							interrupt = queue[key].interrupt;
@@ -179,6 +182,7 @@ package com.primalscreen.soundmanager {
 							// sound playing bit
 							soundChannels[soundChannel] = new SoundChannel();
 							
+							trace("SOUND:      Playing '"+root + queue[key].source+"'");
 							s = SoundLoader.getContent(source);
 							soundChannels[soundChannel] = s.play();
 							soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler);
@@ -192,6 +196,7 @@ package com.primalscreen.soundmanager {
 							
 						} else {
 							// it's not yet loaded, load it
+							trace("SOUND:      File '" + root + queue[key].source + "' not loaded yet... loading...");
 							SoundLoader.add(root + queue[key].source);
 							SoundLoader.start();
 						}
@@ -211,9 +216,9 @@ package com.primalscreen.soundmanager {
 							
 						} else {
 							// sound
-							if (SoundLoader.getContent(queue[key].source[0])) {
+							if (SoundLoader.getContent(root + queue[key].source[0])) {
 								// it's loaded, play it
-								source = queue[key].source[0];
+								source = root + queue[key].source[0];
 								soundChannel = queue[key].soundchannel;
 								
 								interrupt = queue[key].interrupt;
