@@ -43,6 +43,8 @@ package com.primalscreen.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
+		private const version = "beta 0.2";
+		
 		// Singleton crap
 		private static var instance:SoundManager;
 		private static var allowInstantiation:Boolean;
@@ -78,9 +80,9 @@ package com.primalscreen.soundmanager {
 			}
 			
 			if (verbose) {
-				trace("VIEW:       SoundManager in vebose/debug mode");
+				trace("VIEW:       SoundManager "+version+" in vebose/debug mode");
 			} else {
-				trace("VIEW:       SoundManager");
+				trace("VIEW:       SoundManager "+version);
 			}
 			
 			this.SoundLoader = new BulkLoader("SoundLoader");
