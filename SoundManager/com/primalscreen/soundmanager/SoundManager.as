@@ -43,7 +43,7 @@ package com.primalscreen.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version = "beta 0.3";
+		private const version = "beta 0.4";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -137,6 +137,10 @@ package com.primalscreen.soundmanager {
 		}
 		
 		private function checkQueue(e = null) {
+			if (queue.length > 0) {runQueue();};
+		}
+		
+		private function runQueue() {
 			
 			for (var key in queue) {
 				
