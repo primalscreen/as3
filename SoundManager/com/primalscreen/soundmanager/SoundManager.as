@@ -210,7 +210,7 @@ package com.primalscreen.soundmanager {
 						} else {
 							// it's not yet loaded, load it
 							trace("SOUND:      File '" + root + queue[key].source + "' not loaded yet... loading...");
-							SoundLoader.add(root + queue[key].source);
+							SoundLoader.add(root + queue[key].source, {type:"sound"});
 							SoundLoader.start();
 						}
 						// END OF PLAYING A SINGLE SOUND
@@ -268,7 +268,7 @@ package com.primalscreen.soundmanager {
 								// it's not yet loaded, load it
 								for (var w in queue[key].source){
 									if (queue[key].source[w] is String) {
-										SoundLoader.add(root + queue[key].source[w]);
+										SoundLoader.add(root + queue[key].source[w], {type:"sound"});
 									}
 								};
 								SoundLoader.start();
@@ -553,10 +553,10 @@ package com.primalscreen.soundmanager {
 			
 			if (source is Array) {
 				for (var x in source){
-					SoundLoader.add(root + source[x], {id: event});
+					SoundLoader.add(root + source[x], {id: event, type:"sound"});
 				};
 			} else {
-				SoundLoader.add(root + source, {id: event});
+				SoundLoader.add(root + source, {id: event, type:"sound"});
 			}
 			
 			if (event) {
