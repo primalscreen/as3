@@ -72,6 +72,7 @@ package com.primalscreen.soundmanager {
 		private var soundIDCounter = 0;
 		private var sequences:Object = new Object();
 		private var timeouts:Object = new Object();
+		private var mutedChannels:Array = new Array();
 		
 		
 		public function SoundManager():void {
@@ -125,15 +126,23 @@ package com.primalscreen.soundmanager {
 			}
 			
 			
-			
-			if (!soundChannels[newSound.soundchannel] || interrupt) {
-				queue.push(newSound);
-				checkQueue();
-			} else {
-				if (verbose) {trace("SOUND:      It's way too noisy in here.");};
+			if (mutedChannels.indexOf(newSound.soundchannel) > -1) {
+				if (verbose) {trace("SOUND:      Channel "+newSound.soundchannel+" is muted, cancelling sound.");};
+				return false;
 			}
 			
+			if (soundChannels[newSound.soundchannel] && !interrupt) {
+				if (verbose) {trace("SOUND:      It's way too noisy in here.");};
+				return false;
+			}
+			
+			
+			
+			// no reason not to play sound, so play it
+			queue.push(newSound);
+			checkQueue();
 			return newSound.id;
+						
 		}
 		
 		private function checkQueue(e = null) {
@@ -495,6 +504,43 @@ package com.primalscreen.soundmanager {
 			// and adjust the volume on the sound object itself, for future plays
 			s.volume = vol;
 		}
+		
+		
+		
+		
+		
+		public function muteChannel(channel = null) {
+			
+			if (channel) {
+				if (mutedChannels.indexOf(channel) == -1) {
+					mutedChannels.push(channel);
+					if (verbose) {trace("SOUND:      Muting channel: "+channel);};
+				} else {
+					if (verbose) {trace("SOUND:      Channel already muted: "+channel);};
+				}
+			} else {
+				if (verbose) {trace("SOUND:      Error: Used muteChannel without naming a channel to mute.");};
+			}
+		}
+		
+		
+		
+		
+		
+		public function unmuteChannel(channel = null) {
+			
+			if (channel) {
+				if (mutedChannels.indexOf(channel) > -1) {
+					mutedChannels.splice(mutedChannels.indexOf(channel), 1);
+					if (verbose) {trace("SOUND:      Unmuting channel: "+channel);};
+				} else {
+					if (verbose) {trace("SOUND:      Channel not muted: "+channel);};
+				}
+			} else {
+				if (verbose) {trace("SOUND:      Error: Used unmuteChannel without naming a channel to unmute.");};
+			}
+		}
+		
 		
 		
 		

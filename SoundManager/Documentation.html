@@ -165,6 +165,15 @@ var mySound = playSound("filename.mp3");
 		Stops all sounds that are playing on the given channel.
 	</li>
 	<li>
+		<span class="fakepre">muteChannel("channel_name");</span><br>
+		Prevents sounds from playing on a given channel. Does not stop sounds already playing on that channel. 
+		That will be in a later release. For now it's just for when you're debugging an app and you don't want to hear the sound. 
+	</li>
+	<li>
+		<span class="fakepre">unmuteChannel("channel_name");</span><br>
+		Opposite of muteChannel().
+	</li>
+	<li>
 		<span class="fakepre">preload("filename", "MY_PRELOAD_EVENT");</span> or<br>
 		<span class="fakepre">preload(new Array("filename1", "filename2"), "MY_PRELOAD_EVENT");</span><br>
 		Where second property is a string, the name of the event that SoundManager dispatches when the files are preloaded.
