@@ -82,7 +82,11 @@ var soundManager;
 // in your constructor
 soundManager = SoundManager.getInstance(false);
 </pre>
-<p>The boolean in the getInstance function sets whether you want it in verbose, fill-the-output-window-right-up, mode. It's on by default.</p>
+<p>
+	The boolean in the getInstance function sets whether you want it in verbose, fill-the-output-window-right-up, mode. It's on by default. 
+	Note that it only works on the first getInstance, so if you leave it empty the very first time you call soundManager, it will be stuck in verbose mode.
+	This is why I always instanciate SoundManager once in the main document class before anything else (other views, for example) that might also want to instanciate it.
+</p>
 	
 <h2>Usage</h2>
 <h3 style="margin-top:-20px;">playSound()</h3>
