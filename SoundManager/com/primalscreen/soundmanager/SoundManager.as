@@ -43,7 +43,7 @@ package com.primalscreen.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version = "beta 0.5";
+		private const version = "beta 0.51";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -196,7 +196,7 @@ package com.primalscreen.soundmanager {
 							// sound playing bit
 							soundChannels[soundChannel] = new SoundChannel();
 							
-							trace("SOUND:      Playing '"+root + queue[key].source+"'");
+							if (verbose) {trace("SOUND:      Playing '"+root + queue[key].source+"'");};
 							s = SoundLoader.getContent(source);
 							soundChannels[soundChannel] = s.play();
 							soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler);
@@ -210,7 +210,7 @@ package com.primalscreen.soundmanager {
 							
 						} else {
 							// it's not yet loaded, load it
-							trace("SOUND:      File '" + root + queue[key].source + "' not loaded yet... loading...");
+							if (verbose) {trace("SOUND:      File '" + root + queue[key].source + "' not loaded yet... loading...");};
 							SoundLoader.add(root + queue[key].source, {type:"sound"});
 							SoundLoader.start();
 						}
