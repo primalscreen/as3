@@ -43,7 +43,7 @@ package com.primalscreen.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version = "beta 0.4";
+		private const version = "beta 0.5";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -51,13 +51,14 @@ package com.primalscreen.soundmanager {
 		
 		public static function getInstance(v = true, q = 150):SoundManager {
 			
-			verbose = v;
 			queueInterval = q;
 			
 			if (instance == null) {
 				allowInstantiation = true;
 				instance = new SoundManager();
 				allowInstantiation = false;
+				verbose = v;
+				
 			}
 			return instance;
 		}
