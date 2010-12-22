@@ -82,9 +82,9 @@ package com.primalscreen.soundmanager {
 			}
 			
 			if (verbose) {
-				trace("VIEW:       SoundManager "+version+" in vebose/debug mode");
+				trace("V: SoundManager "+version+" Instanciated in vebose/debug mode");
 			} else {
-				trace("VIEW:       SoundManager "+version);
+				trace("V: SoundManager "+version+" Instanciated");
 			}
 			
 			this.SoundLoader = new BulkLoader("SoundLoader");
@@ -199,7 +199,7 @@ package com.primalscreen.soundmanager {
 							if (verbose) {trace("SOUND:      Playing '"+root + queue[key].source+"'");};
 							s = SoundLoader.getContent(source);
 							soundChannels[soundChannel] = s.play();
-							soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler);
+							soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler, false, 0, true);
 							
 							v = new SoundTransform(volume);
 							soundChannels[soundChannel].soundTransform = v;
@@ -256,7 +256,7 @@ package com.primalscreen.soundmanager {
 								
 								s = SoundLoader.getContent(source);
 								soundChannels[soundChannel] = s.play();
-								soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundSequencePartCompleteEventHandler);
+								soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundSequencePartCompleteEventHandler, false, 0, true);
 								
 								v = new SoundTransform(volume);
 								soundChannels[soundChannel].soundTransform = v;
@@ -562,7 +562,7 @@ package com.primalscreen.soundmanager {
 			
 			if (event) {
 				preloadQueue.push(event);
-				SoundLoader.addEventListener(BulkLoader.COMPLETE, onAllLoaded);
+				SoundLoader.addEventListener(BulkLoader.COMPLETE, onAllLoaded, false, 0, true);
 			}
 			
 			SoundLoader.start();
