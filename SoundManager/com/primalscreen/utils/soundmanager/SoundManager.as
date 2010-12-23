@@ -1,6 +1,6 @@
 // interrupts aren't working
 
-package com.primalscreen.soundmanager {
+package com.primalscreen.utils.soundmanager {
 	
 	/*
 	
@@ -43,30 +43,39 @@ package com.primalscreen.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version = "beta 0.51";
+		private const version = "beta 0.7";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
 		private static var allowInstantiation:Boolean;
 		
-		public static function getInstance(v = true, q = 150):SoundManager {
-			
-			queueInterval = q;
+		public static function getInstance(options:Object = null):SoundManager {
 			
 			if (instance == null) {
 				allowInstantiation = true;
 				instance = new SoundManager();
 				allowInstantiation = false;
-				verbose = v;
 				
+				if (options) {
+					if (options.hasOwnProperty("queueInterval")) {queueInterval = options.queueInterval;};
+					if (options.hasOwnProperty("trace")) {traceprepend = options.trace;};
+					if (options.hasOwnProperty("verbose")) {verbose = options.verbose;};
+					if (options.hasOwnProperty("samePriorityInterrupts")) {samePriorityInterrupts = options.samePriorityInterrupts;};
+				};
 			}
 			return instance;
 		}
 		// end singleton crap
 		
+		
+		// options
 		private static var verbose:Boolean;
 		private var root:String = "";
-		private static var queueInterval:Number;
+		private static var queueInterval:Number = 100;
+		private static var traceprepend:String = "SoundManager: ";
+		private static var samePriorityInterrupts:Boolean = true;
+		
+		// state, objects, stuff
 		private var SoundLoader: BulkLoader;
 		private var queue:Array = new Array();
 		private var soundChannels:Object = new Object();
@@ -74,6 +83,7 @@ package com.primalscreen.soundmanager {
 		private var sequences:Object = new Object();
 		private var timeouts:Object = new Object();
 		private var mutedChannels:Array = new Array();
+		private var defaultVolume:Number = 1;
 		
 		
 		public function SoundManager():void {
@@ -98,25 +108,53 @@ package com.primalscreen.soundmanager {
 			root = r;
 		}
 		
+		public function setVolume(v) {
+			defaultVolume = v;
+		}
 		
-		
-		public function playSound(sound, event = null, soundchannel = null, interrupt = true, volume = 1, loop = 1) {
+		public function adjustVolume(id, vol = 1) {
+
+			// find the sound
+			var s;
+			for (var x in queue) {
+				if (queue[x].id == id) {
+					s = queue[x];
+				}
+			}
 			
-			if (verbose) {trace("SOUND:      Playing " + sound + " on channel " + soundchannel + " with id " + soundIDCounter);};
+			// adjust the volume if it's currently playing
+			if (soundChannels.hasOwnProperty(s.soundChannel)) {
+				var newVol:SoundTransform = new SoundTransform(vol); 
+				soundChannels[s.soundChannel].soundTransform = newVol;
+			}
+			// and adjust the volume on the sound object itself, for future plays
+			s.volume = vol;
+		}
+		
+		
+		
+		
+		
+		public function playSound(sound, parent = null, options:Object = null) {
+			
+			var parentName = parent.toString();
+			parent = null;
+			
 			
 			var newSound:Object 	= new Object();
 			newSound.id				= soundIDCounter;
 			newSound.source 		= sound;
-			if (soundchannel) {
-				newSound.soundchannel = soundchannel;
+			if (options.hasOwnProperty("channel")) {
+				newSound.soundchannel = options.channel;
 			} else {
 				newSound.soundchannel = "soundchannel" + soundIDCounter;
 			}
-			newSound.interrupt 		= interrupt;
-			newSound.volume 		= volume;
-			newSound.loop 			= loop;
-			newSound.event 			= event;
-			newSound.played			= false;
+			if (options.hasOwnProperty("priority")) {newSound.priority = options.priority;} else {newSound.priority = 0;};
+			if (options.hasOwnProperty("volume")) 	{newSound.volume = options.volume;} else {newSound.volume = defaultVolume;};
+			if (options.hasOwnProperty("loop")) 	{newSound.loop = options.loop;} else {newSound.loop = 1;};
+			if (options.hasOwnProperty("event")) 	{newSound.event = options.event;};// else {newSound.event = "SOUND_FINISHED";};
+			newSound.parentname = parentName;
+			newSound.played = false;
 			
 			soundIDCounter++;
 			
@@ -128,15 +166,25 @@ package com.primalscreen.soundmanager {
 			
 			
 			if (mutedChannels.indexOf(newSound.soundchannel) > -1) {
-				if (verbose) {trace("SOUND:      Channel "+newSound.soundchannel+" is muted, cancelling sound.");};
+				if (verbose) {trace(traceprepend+"Channel "+newSound.soundchannel+" is muted, cancelling sound.");};
 				return false;
 			}
 			
-			if (soundChannels[newSound.soundchannel] && !interrupt) {
-				if (verbose) {trace("SOUND:      It's way too noisy in here.");};
-				return false;
-			}
 			
+			
+			for (var x in queue) { // look through the queue
+				if (queue[x].soundchannel == newSound.soundchannel) { // if anything in the queue is on the same channel
+					if (queue[x].priority == newSound.priority && !samePriorityInterrupts) {// compare it's priority
+						if (verbose) {trace(traceprepend+"Same priority sound already playing, and 'samePriorityInterrupts' is set to false, so ignoring: "+queue[x].source);};
+						return false;
+					} if (queue[x].priority > newSound.priority) {
+						if (verbose) {trace(traceprepend+"Higher priority sound already playing, ignoring: "+queue[x].source);};
+						return false;
+					} else {
+						obliterate(queue[x]);
+					}
+				}
+			}
 			
 			
 			// no reason not to play sound, so play it
@@ -145,6 +193,21 @@ package com.primalscreen.soundmanager {
 			return newSound.id;
 						
 		}
+		
+		
+		
+		
+		
+		
+				
+		
+		
+		
+		
+		
+		
+		
+		
 		
 		private function checkQueue(e = null) {
 			if (queue.length > 0) {runQueue();};
@@ -180,23 +243,21 @@ package com.primalscreen.soundmanager {
 							interrupt = queue[key].interrupt;
 							volume = queue[key].volume;
 							
-							
-							if (interrupt) {
-								for (var x in queue){
-									if (queue[x].soundchannel == soundChannel && queue[x].id != queue[key].id) {
-										if (soundChannels[soundChannel]) {soundChannels[soundChannel].stop();};
-										delete(soundChannels[soundChannel]);
-										delete(queue[x]);
-										if (verbose) {trace("SOUND:      Interrupting");};
-									}
-								};
-							}
-							
+							/*
+							for (var x in queue){
+								if (queue[x].soundchannel == soundChannel && queue[x].id != queue[key].id) {
+									if (soundChannels[soundChannel]) {soundChannels[soundChannel].stop();};
+									delete(soundChannels[soundChannel]);
+									delete(queue[x]);
+									if (verbose) {trace(traceprepend+"Interrupting");};
+								}
+							};
+							*/
 							
 							// sound playing bit
 							soundChannels[soundChannel] = new SoundChannel();
 							
-							if (verbose) {trace("SOUND:      Playing '"+root + queue[key].source+"'");};
+							if (verbose) {trace(traceprepend+"Playing '"+root + queue[key].source+"'");};
 							s = SoundLoader.getContent(source);
 							soundChannels[soundChannel] = s.play();
 							soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler, false, 0, true);
@@ -210,7 +271,7 @@ package com.primalscreen.soundmanager {
 							
 						} else {
 							// it's not yet loaded, load it
-							if (verbose) {trace("SOUND:      File '" + root + queue[key].source + "' not loaded yet... loading...");};
+							if (verbose) {trace(traceprepend+"File '" + root + queue[key].source + "' not loaded yet... loading...");};
 							SoundLoader.add(root + queue[key].source, {type:"sound"});
 							SoundLoader.start();
 						}
@@ -238,18 +299,17 @@ package com.primalscreen.soundmanager {
 								interrupt = queue[key].interrupt;
 								volume = queue[key].volume;
 								
-								
-								if (interrupt) {
-									for (var u in queue){
-										if (queue[u].soundchannel == soundChannel && queue[u].id != queue[key].id) {
-											if (soundChannels[soundChannel]) {soundChannels[soundChannel].stop();};
-											delete(soundChannels[soundChannel]);
-											delete(queue[u]);
-											if (verbose) {trace("SOUND:      Interrupting");};
-											
-										}
-									};
-								}
+								/*
+								for (var u in queue){
+									if (queue[u].soundchannel == soundChannel && queue[u].id != queue[key].id) {
+										if (soundChannels[soundChannel]) {soundChannels[soundChannel].stop();};
+										delete(soundChannels[soundChannel]);
+										delete(queue[u]);
+										if (verbose) {trace(traceprepend+"Interrupting");};
+										
+									}
+								};
+								*/
 								
 								// sound playing bit
 								soundChannels[soundChannel] = new SoundChannel();
@@ -302,36 +362,31 @@ package com.primalscreen.soundmanager {
 		private function soundFinished(soundChannel) {
 			
 			
-			// find the soundID
-			var soundID;
+			// find the sound
+			var s;
 			for (var x in queue) {
 				if (queue[x].soundchannel == soundChannel) {
-					soundID = queue[x].id;
+					s = queue[x];
 				}
 			}
 			
+			if (verbose) {trace(traceprepend+"Sound finished: " + s.id);};
 			
-			if (verbose) {trace("SOUND:      Sound finished: " + soundID);};
+			// dispatch the end event, if requested
+			if (s.event != null && s.event is String) {
+				if (verbose) {trace(traceprepend+"Dispatching event: '" + s.event + "'");};
+				dispatchEvent(new Event(s.event, true));
+			}
 			
-			for (var y in queue) {
-				if (queue[y].id == soundID) {
-					var s = queue[y];
-					// dispatch the end event, if requested
-					if (s.event != null && s.event is String) {
-						if (verbose) {trace("SOUND:      Dispatching event: '" + s.event + "'");};
-						dispatchEvent(new Event(s.event, true));
-					}
-					// kill the real sound channel
-					delete(soundChannels[soundChannel]);// = null;
-					
-					// and take the sound out of the queue, unless it's meant to loop, in which case, set it back to unplayed
-					if (s.loop > 1 || s.loop == 0) {
-						s.played = false;
-						if (s.loop > 1) {s.loop--;};
-					} else {
-						delete(queue[y]);
-					}
-				}
+			// kill the real sound channel
+			delete(soundChannels[soundChannel]);
+			
+			// and take the sound out of the queue, unless it's meant to loop, in which case, set it back to unplayed
+			if (s.loop > 1 || s.loop == 0) {
+				s.played = false;
+				if (s.loop > 1) {s.loop--;};
+			} else {
+				obliterate(s);
 			}
 		}
 		
@@ -379,7 +434,7 @@ package com.primalscreen.soundmanager {
 					}
 				}
 				
-				if (verbose) {trace("SOUND:      Sound finished: " + soundID);};
+				if (verbose) {trace(traceprepend+"Sound finished: " + soundID);};
 				
 				
 				for (var y in queue) {
@@ -390,7 +445,7 @@ package com.primalscreen.soundmanager {
 						
 						// dispatch the end event, if requested
 						if (s.source.length == 0 && s.event != null && s.event is String) {
-							if (verbose) {trace("SOUND:      Dispatching event: '" + s.event + "'");};
+							if (verbose) {trace(traceprepend+"Dispatching event: '" + s.event + "'");};
 							dispatchEvent(new Event(s.event, true));
 						}
 						// kill the sound channel
@@ -418,93 +473,99 @@ package com.primalscreen.soundmanager {
 			}
 		}
 		
-		
+		private function obliterate(sound) {
+			// takes a sound object, or a sound ID and destroys it, whether it's playing, waiting to play, or just added to the queue
+			
+			if (sound is Number) {
+			
+				for (var x in queue) {
+					if (queue[x].id == sound) {
+						if (verbose) {trace(traceprepend+"Obliterating Sound: "+queue[x].source);};
+						if (soundChannels.hasOwnProperty(queue[x].soundchannel)) {
+							soundChannels[queue[x].soundchannel].stop();
+							delete(soundChannels[queue[x].soundchannel]);
+						}
+						queue.splice(x, 1);
+					}
+				}
+				
+			} else if (sound is Object) {
+				
+				for (var y in queue) {
+					if (queue[y] === sound) {
+						if (verbose) {trace(traceprepend+"Obliterating Sound: "+queue[y].source);};
+						if (soundChannels.hasOwnProperty(queue[y].soundchannel)) {
+							soundChannels[queue[y].soundchannel].stop();
+							delete(soundChannels[queue[y].soundchannel]);
+						}
+						queue.splice(y, 1);
+					}
+				}
+			}
+		}
 		
 		public function stopSound(id) {
-			if (verbose) {trace("SOUND:      Stopping sound by id: " + id);};
+			if (verbose) {trace(traceprepend+"Stopping sound by id: " + id);};
 			
-			var s;
-			
-			for (var x in queue) {
-				if (queue[x].id == id) {
-					s = queue[x];
-					// take the sound out of the queue
-					delete(queue[x]);
-				}
-			}
-			
-			if (s) {
-				// kill the real sound channel
-				if (soundChannels[s.soundChannel]) {
-					soundChannels[s.soundChannel].stop();
-					delete(soundChannels[s.soundChannel]);
-				}
-				
-				
-				
-			}
+			obliterate(id);
 		}
 		
 		
 		public function stopAllSounds() {
-			if (verbose) {trace("SOUND:      Stopping all sounds");};
+			if (verbose) {trace(traceprepend+"Stopping all sounds");};
 			
 			for (var x in queue) {
-				delete(queue[x]);
+				obliterate(queue[x]);
 			}
-			
-			for (var y in soundChannels) {
-				soundChannels[y].stop();
-			}
-			soundChannels = new Object();
 						
 		}
 		
 		
 		public function stopChannel(soundchannel) {
-			if (verbose) {trace("SOUND:      Stopping sounds on channel: "+soundchannel);};
+			if (verbose) {trace(traceprepend+"Stopping sounds on channel: "+soundchannel);};
 			
-			var s;
+			for (var x in queue) {
+				if (queue[x].soundchannel == soundchannel) {
+					obliterate(queue[x]);
+				}
+			}
+		}
+		
+		
+		
+		
+		
+		public function stopSoundsFrom(target, children = true) {
 			
-			if (soundChannels.hasOwnProperty(soundchannel)) {
-				for (var x in queue) {
-					if (queue[x].soundchannel == soundchannel) {
-						s = queue[x];
-						delete(queue[x]);
-					}
+			var parentNamesToStop = new Array();
+			parentNamesToStop.push(target.toString());
+			
+			if (children) {
+				// loop through the children and add their names to the list too.
+				for (var i= 0; i < target.numChildren; i++){
+					parentNamesToStop.push(target.getChildAt(i).toString());
 				}
-				
-				
-				for (var y in soundChannels) {
-					if (x == s.soundChannels) {
-						soundChannels[y].stop();
-						delete(soundChannels[y]);
-					}
-				}
-				
 			}
 			
+			if (verbose) {
+				trace(traceprepend+"Stopping any sounds with these parents: ");
+				for (var x in parentNamesToStop){
+					trace("   " + parentNamesToStop[x]);
+				}
+			}
+			
+			
+			for (var y in parentNamesToStop) {
+				for (var z in queue) {
+					if (queue[z].parentname == parentNamesToStop[y]) {
+						obliterate(queue[z]);
+					}
+				}
+			
+			}
 			
 		}
 		
-		public function setVolume(id, vol = 1) {
-
-			// find the sound
-			var s;
-			for (var x in queue) {
-				if (queue[x].id == id) {
-					s = queue[x];
-				}
-			}
-			
-			// adjust the volume if it's currently playing
-			if (soundChannels.hasOwnProperty(s.soundChannel)) {
-				var newVol:SoundTransform = new SoundTransform(vol); 
-				soundChannels[s.soundChannel].soundTransform = newVol;
-			}
-			// and adjust the volume on the sound object itself, for future plays
-			s.volume = vol;
-		}
 		
 		
 		
@@ -515,12 +576,12 @@ package com.primalscreen.soundmanager {
 			if (channel) {
 				if (mutedChannels.indexOf(channel) == -1) {
 					mutedChannels.push(channel);
-					if (verbose) {trace("SOUND:      Muting channel: "+channel);};
+					if (verbose) {trace(traceprepend+"Muting channel: "+channel);};
 				} else {
-					if (verbose) {trace("SOUND:      Channel already muted: "+channel);};
+					if (verbose) {trace(traceprepend+"Channel already muted: "+channel);};
 				}
 			} else {
-				if (verbose) {trace("SOUND:      Error: Used muteChannel without naming a channel to mute.");};
+				if (verbose) {trace(traceprepend+"Error: Used muteChannel without naming a channel to mute.");};
 			}
 		}
 		
@@ -533,12 +594,12 @@ package com.primalscreen.soundmanager {
 			if (channel) {
 				if (mutedChannels.indexOf(channel) > -1) {
 					mutedChannels.splice(mutedChannels.indexOf(channel), 1);
-					if (verbose) {trace("SOUND:      Unmuting channel: "+channel);};
+					if (verbose) {trace(traceprepend+"Unmuting channel: "+channel);};
 				} else {
-					if (verbose) {trace("SOUND:      Channel not muted: "+channel);};
+					if (verbose) {trace(traceprepend+"Channel not muted: "+channel);};
 				}
 			} else {
-				if (verbose) {trace("SOUND:      Error: Used unmuteChannel without naming a channel to unmute.");};
+				if (verbose) {trace(traceprepend+"Error: Used unmuteChannel without naming a channel to unmute.");};
 			}
 		}
 		

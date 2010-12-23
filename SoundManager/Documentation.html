@@ -18,8 +18,7 @@
 		}
 		
 		h1 {
-			font-size: 20pt;
-			margin-bottom: -20px;
+			font-size: 18pt;
 			color: #205F87;
 		}
 		h2 {
@@ -31,6 +30,14 @@
 			font-size: 12pt;
 			padding-top: 20px;
 			color: #205F87;
+		}
+		
+		.important {
+			background-color: #F2E4E4;
+			border: 1px dashed #BD9191;
+			padding: 10px;
+			overflow: auto;
+			color: #BD4646;
 		}
 		
 		pre {
@@ -62,66 +69,135 @@
 
 
 <div id="container">
-<h1>Primal Screen Sound Manager Documentation</h1>
+<h1>Primal Screen Sound Manager b0.7 Documentation</h1>
 
 
-<h2>Installation</h2>
+<div class="important">
+	<strong>Important:</strong> This version is not backward compatible with previous versions (before b0.7). If you want an old version look 
+	<a href="https://github.com/primalscreen/as3/tree/8b14b0820b4dfc74911fc04cb9c4e89f1643f880/SoundManager/com/primalscreen/soundmanager">here.</a>
+	
+	<br>
+	<br>
+	
+	If you want to move up from the old version, it's mostly the same. The three major changes are
+	<ul>
+		<li>
+			SoundManager.getInstance() now has just one argument, and it's an options object that contains all of the options
+			that used to be available through multiple arguments.
+		</li>
+		<li>
+			playSound() now has just three arguments. They are <em>source</em> (hasn't changed), <em>this</em> (a reference to the calling class), 
+			and	<em>options</em> an object that contains all the options that used to be available through several arguments.
+		</li>
+		<li>
+			The interrupt system is gone, and has been replaced by a priority system, where you give sounds a numerical priority, and they
+			will only play if there isn't a sound with a higher priority on the same channel already playing.
+		</li>
+	</ul>	
+</div>
+
+
+<h2 style="margin-top:-20px;">Installation</h2>
 <p>Put the <span class="fakepre">com.primalscreen.soundmanager.SoundManager</span> package and the BulkLoader package 
 files in your classpath. Keep the <span class="fakepre">com.primalscreen</span>... and 
 <span class="fakepre">br.com.stimuli</span>... folder structures.</p>
-<p>If it didn't come with this file, you can <a href="http://code.google.com/p/bulk-loader/">BulkLoader here</a>.</p>
+<p>If it didn't come with this file, you can get <a href="http://code.google.com/p/bulk-loader/">BulkLoader here</a>.</p>
 	
 <p>Then instantiate like this (it's a singleton, you can't just use <span class="fakepre">new SoundManager()</span>):</p>
 <pre>
 // in the package
-import com.primalscreen.soundmanager.SoundManager;
+import com.primalscreen.soundmanager.utils.SoundManager;
 
 // in the class
 var soundManager;
 
 // in your constructor
-soundManager = SoundManager.getInstance(false);
+soundManager = SoundManager.getInstance();
 </pre>
-<p>
-	The boolean in the getInstance function sets whether you want it in verbose, fill-the-output-window-right-up, mode. It's on by default. 
-	Note that it only works on the first getInstance, so if you leave it empty the very first time you call soundManager, it will be stuck in verbose mode.
-	This is why I always instanciate SoundManager once in the main document class before anything else (other views, for example) that might also want to instanciate it.
-</p>
+
+
+
+
+
+
 	
 <h2>Usage</h2>
-<h3 style="margin-top:-20px;">playSound()</h3>
-<p>Now that you have a singleton instance called soundManager, let's play a sound:</p>
-<pre>soundManager.playSound("assets/testaudio.mp3");</pre>
-<p>This is the simplest example. It loads the mp3 with bulkloader and plays it when ready. There are 
-several other properties of the playSound function. In order they are:</p>
+<h3 style="margin-top:-20px;">SoundManager.getInstance() Options</h3>
+<p>
+	When you first instanciate SoundManager with the <span class="fakepre">getInstance()</span> function, you can pass it an options object. 
+	The available options are:
+</p>
+<ul>
+	<li><strong>verbose</strong> <em>(Boolean):</em> Puts SoundManager in verbose mode, which is when it traces pretty much everything
+	it does. Great for debugging, but fills up your output window pretty quickly. Defaults to <span class="fakepre">false</span>.</li>
+	<li><strong>trace</strong> <em>(String):</em> When in verbose mode, this is what prepends everything that SoundManager traces. Default 
+	is <span class="fakepre">"SoundManager: "</span>.</li>
+	<li><strong>queueInterval</strong> <em>(Number):</em> While a file is loading, this is the number of milliseconds SoundManager waits before
+	checking again to see if the file is ready. Make it higher if you have any performance issues. Default is <span class="fakepre">100</span>.</li>
+	<li><strong>samePriorityInterrupts</strong> <em>(Boolean):</em> If true, a second sound playing at the same priority on the same channel
+	will interrupt an existing sound. If false, the existing sound will play. Defaults to <span class="fakepre">true</span>.</li>
 	
+	
+</ul>
+<p>
+	The way to implement these these options is:
+</p>
+<pre>
+soundManager = SoundManager.getInstance({verbose: true, trace:"SoundManager says "});
+</pre>
+
+
+<h3>playSound()</h3>
+<p>Now that you have a singleton instance called of SoundManager called soundManager, let's play a sound:</p>
+<pre>soundManager.playSound("assets/testaudio.mp3");</pre>
+<p>This is the simplest example. It loads the mp3 with bulkloader and plays it when ready. playSound has three arguments. In order they are:</p>
+
 <ul>
 	<li><strong>Source</strong> <em>(String/Array):</em> the filename, or array of filenames you want to load 
 	and play. Within the array should only be strings and numbers, numbers will interpretted as gaps between 
 	the sounds, in milliseconds.</li>
-	<li><strong>Event</strong> <em>(String):</em> The event you want the SoundManager to dispatch when this 
+	<li><strong>Caller</strong> <em>(Object):</em> Usually <span class="fakepre">this</span>, this reference is used later when you're garbage collecting.
+	It's a reference to the class that called the <span class="fakepre">playSound()</span>, so that if you ever want to destroy the app/game/class later, and you want to kill
+	all sounds associated with it, you can use the <span class="fakepre">stopSoundsFrom(this)</span> function, to stop all sounds that were set up by <span class="fakepre">this</span> class.</li>
+	<li><strong>Options</strong> <em>(Object):</em> Like SoundManager's <span class="fakepre">getInstance()</span> function, <span class="fakepre">playSound()</span>
+	 can recieve an options object. See below for the available options.</li>
+	
+</ul>
+
+<p><span class="fakepre">playSound()</span> has an options object in it's third parameter, here are the available options.</p>
+<ul>
+	<li><strong>event</strong> <em>(String):</em> The event you want the SoundManager to dispatch when this 
 	sound finishes.</li>
-	<li><strong>Channel</strong> <em>(String):</em> The name of the channel you want to play the sound on. 
+	<li><strong>channel</strong> <em>(String):</em> The name of the channel you want to play the sound on. 
 	These aren't real SoundChannels, think of it like if there's a sound playing on channel A, and you play 
 	another one on that same channel, it will stop the first sound and play the second. </li>
-	<li><strong>Interrupt</strong> <em>(Boolean):</em> Sets whether a sound played on the same channel (above) 
-	should interrupt an already playing sound. If false, the first sound will continue, the second will be dropped.</li>
-	<li><strong>Volume</strong> <em>(Number):</em> 0 is muted, 1 is normal volume.</li>
-	<li><strong>Loop</strong> <em>(Number):</em> Number of times to loop the sound. 0 is infinite, 1 is default.</li>
+	<li><strong>priority</strong> <em>(Number):</em> Sets the priority level of the sound. If another sound exists on the same channel,
+	the one with the higher priority will play, cutting off the existing sound if necessary.</li>
+	<li><strong>volume</strong> <em>(Number):</em> 0 is muted, 1 is normal volume. Defaults to 1, unless you've already used setVolume();</li>
+	<li><strong>loop</strong> <em>(Number):</em> Number of times to loop the sound. 0 is infinite, 1 is default.</li>
 </ul>
 <p>So a much more complicated example might be:</p>
 <pre>
-soundManager.playSound("assets/testaudio.mp3", "TEST_AUDIO_PLAYED", "sound_effects_channel", 
-true, 0.5, 2, 2500);
+soundManager.playSound("assets/testaudio.mp3", this, {
+		event: "TEST_AUDIO_PLAYED", 
+		channel: "sound_effects_channel", 
+		priority: 4, 
+		volume: 0.5,
+		loop: 2
+	});
 </pre>
-<p>Which would make the file, <em>testaudio.mp3</em>, load, wait 2.5 seconds, then play twice at half volume on the sound_effects_channel, interrupting anything else on that channel. 
+<p>Which would make the file, <em>testaudio.mp3</em>, load, then play twice at half volume on a channel called "sound_effects_channel", interrupting anything else on that channel with a priority lower than 4. 
 
-<h3>Special cases in playSound()'s source property</h3>
-<p>The first property sent to <span class="fakepre">playSound()</span> is very dynamic. The simplest example you've already seen is sending it a 
-string, the filename you want to play. But if you want to play a sequence of sounds, in order, one after the other,
+
+
+
+
+<h3>Single sounds, sound sequences, and delays in playSound()'s source (first) argument</h3>
+<p>The first argument sent to <span class="fakepre">playSound()</span> is very dynamic. The simplest example you've already seen is sending it a 
+string, the filename you want to play. If you want to play a sequence of sounds, in order, one after the other,
 you can send it an array:</p>
 <pre>
-playSound(new Array("filename1.mp3", "filename2.mp3", "filename3.mp3"));
+playSound(["filename1.mp3", "filename2.mp3", "filename3.mp3"]);
 </pre>
 <p>Or if you want to build the sequence using some logic of your own, you might want to build the array separately:</p>
 <pre>
@@ -134,15 +210,15 @@ playSound(seq);
 <p>The above example would play <em>filename1.mp3</em>, then, using <span class="fakepre">Math.random()</span> to generate a random choice, it picks either <em>filename2.mp3</em> or <em>filename3.mp3</em> and play it.</p>
 <p>So what if you want a pause between audio files within a sequence. Simple, just put a number in your sequence array, instead of a string.</p>
 <pre>
-playSound(new Array("filename1.mp3", 500, "filename2.mp3", 500, "filename3.mp3"));
+playSound(["filename1.mp3", 500, "filename2.mp3", 500, "filename3.mp3"]);
 </pre>
 <p>The above example will play the three files in order, but will pause for half a second (500 milliseconds) between them.
 
 
 
 
-<h3>Other functions:</h3>
-Many of these functions need an id property to work. That's the id of the sound, and it's return as a Number by the playSound function. If you know 
+<h3>Other SoundManager functions:</h3>
+Many of these functions need an id argument to work. That's the id of the sound, and it's return as a Number by the playSound function. If you know 
 you'll need to refer back to a sound later, to stop it or change it's volume, do this:
 <pre>
 var mySound = playSound("filename.mp3");
@@ -153,12 +229,16 @@ var mySound = playSound("filename.mp3");
 		Sets the location, relative to the document root, of the files you're trying to load. Make sure you leave a <span class="fakepre">/</span> at the end.
 	</li>
 	<li>
-		<span class="fakepre">setVolume(id, volume);</span><br>
-		Sets the volume of a given sound, by it's ID (which is returned by playSound(), as mentioned above).
+		<span class="fakepre">setVolume(0.8);</span><br>
+		Sets the default volume for all <em>new</em> sounds. 0 = mute, 1 = 100%.
+	</li>
+	<li>
+		<span class="fakepre">adjustVolume(id, volume);</span><br>
+		Sets the volume of a given sound, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
 	</li>
 	<li>
 		<span class="fakepre">stopSound(id);</span><br>
-		Stops the selected sound by it's ID (which is returned by playSound(), as mentioned above).
+		Stops the selected sound by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
 	</li>
 	<li>
 		<span class="fakepre">stopAllSounds();</span><br>
@@ -168,26 +248,37 @@ var mySound = playSound("filename.mp3");
 		<span class="fakepre">stopChannel("channel_name");</span><br>
 		Stops all sounds that are playing on the given channel.
 	</li>
+	
+	<li>
+		<span class="fakepre">stopSoundsFrom(this, true);</span><br>
+		For garbage collection. Stops all sounds that were created by the class/object/movieclip given in the first parameter. There isn't 
+		much reason to use anything but <span class="fakepre">this</span> here. When you pass in <span class="fakepre">this</span> 
+		as the second parameter for <span class="fakepre">playSound()</span>, SoundManager keeps track of which class originally called 
+		the <span class="fakepre">playSound()</span> function. This means that if you call <span class="fakepre">stopSoundsFrom(this)</span> 
+		later from the same class, it will stop all sounds called from the class. The second parameter is a boolean, which tells it whether 
+		to stop sounds from all child classes too. Do this before taking those children off the display list, it only works if they're on 
+		the display list.
+	</li>
 	<li>
 		<span class="fakepre">muteChannel("channel_name");</span><br>
 		Prevents sounds from playing on a given channel. Does not stop sounds already playing on that channel. 
-		That will be in a later release. For now it's just for when you're debugging an app and you don't want to hear the sound. 
+		Use <span class="fakepre">stopChannel()</span> for that.
 	</li>
 	<li>
 		<span class="fakepre">unmuteChannel("channel_name");</span><br>
-		Opposite of muteChannel().
+		Opposite of <span class="fakepre">muteChannel()</span>.
 	</li>
 	<li>
 		<span class="fakepre">preload("filename", "MY_PRELOAD_EVENT");</span> or<br>
-		<span class="fakepre">preload(new Array("filename1", "filename2"), "MY_PRELOAD_EVENT");</span><br>
-		Where second property is a string, the name of the event that SoundManager dispatches when the files are preloaded.
+		<span class="fakepre">preload(["filename1", "filename2"], "MY_PRELOAD_EVENT");</span><br>
+		Where second argument is a string, the name of the event that SoundManager dispatches when the files are preloaded.
 	</li>
 </ul>
 
 <h3>Other helpful code snippets:</h3>
 <p>Listening for the end of a sound</p>
 <pre>
-soundManager.playSound("assets/testaudio.mp3", "MY_SOUND_PLAYED");
+soundManager.playSound("assets/testaudio.mp3", this, {event: "MY_SOUND_PLAYED"});
 soundManager.addEventListener("MY_SOUND_PLAYED", soundPlayedHandler);
 </pre>
 <p>Listening for a file/files to be preloaded</p>
@@ -201,6 +292,20 @@ function soundLoadedHandler(e) { /* executed when file is loaded */ }
 var mySoundID = playSound("filename.mp3");
 stopSound(mySoundID);
 </pre>
+<p>Play a few sounds, then when it's time to clean up a class before removeChilding it, stop all sounds that it or it's children called.</p>
+<pre>
+soundManager.playSound("boing.mp3", this);
+soundManager.playSound("voiceover.mp3", this, {channel: "vo"});
+soundManager.playSound("bang.mp3", this);
+soundManager.stopSoundsFrom(this);
+</pre>
+
+
+
+
+
+
+
 
 
 
