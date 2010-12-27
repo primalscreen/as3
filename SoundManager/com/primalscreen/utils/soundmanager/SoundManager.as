@@ -43,7 +43,7 @@ package com.primalscreen.utils.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version = "beta 0.7";
+		private const version = "beta 0.71";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -534,7 +534,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		public function stopSoundsFrom(target) {
+		public function stopSoundsFrom(target, deprecated = null) {
 			
 			var stopping = target.toString();
 			
