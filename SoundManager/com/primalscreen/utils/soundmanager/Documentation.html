@@ -250,15 +250,12 @@ var mySound = playSound("filename.mp3");
 	</li>
 	
 	<li>
-		<span class="fakepre">stopSoundsFrom(this, true);</span><br>
+		<span class="fakepre">stopSoundsFrom(this);</span><br>
 		For garbage collection. Stops all sounds that were created by the class/object/movieclip given in the first parameter. There isn't 
 		much reason to use anything but <span class="fakepre">this</span> here. When you pass in <span class="fakepre">this</span> 
 		as the second parameter for <span class="fakepre">playSound()</span>, SoundManager keeps track of which class originally called 
 		the <span class="fakepre">playSound()</span> function. This means that if you call <span class="fakepre">stopSoundsFrom(this)</span> 
-		later from the same class, it will stop all sounds called from the class. The second parameter is a boolean, which tells it whether 
-		to stop sounds from all child classes too. Do this before taking those children off the display list, it only works if they're on 
-		the display list.
-	</li>
+		later from the same class, it will stop all sounds called from the class.</li>
 	<li>
 		<span class="fakepre">muteChannel("channel_name");</span><br>
 		Prevents sounds from playing on a given channel. Does not stop sounds already playing on that channel. 

@@ -534,37 +534,18 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		
-		public function stopSoundsFrom(target, children = true) {
+		public function stopSoundsFrom(target) {
 			
-			var parentNamesToStop = new Array();
-			parentNamesToStop.push(target.toString());
+			var stopping = target.toString();
 			
-			if (children) {
-				// loop through the children and add their names to the list too.
-				for (var i= 0; i < target.numChildren; i++){
-					parentNamesToStop.push(target.getChildAt(i).toString());
+			for (var z in queue) {
+				if (queue[z].parentname == stopping) {
+					obliterate(queue[z]);
 				}
-			}
-			
-			if (verbose) {
-				trace(traceprepend+"Stopping any sounds with these parents: ");
-				for (var x in parentNamesToStop){
-					trace("   " + parentNamesToStop[x]);
-				}
-			}
-			
-			
-			for (var y in parentNamesToStop) {
-				for (var z in queue) {
-					if (queue[z].parentname == parentNamesToStop[y]) {
-						obliterate(queue[z]);
-					}
-				}
-			
 			}
 			
 		}
+		
 		
 		
 		
