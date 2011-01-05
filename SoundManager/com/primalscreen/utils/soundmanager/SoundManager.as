@@ -43,7 +43,7 @@ package com.primalscreen.utils.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version = "beta 0.74";
+		private const version = "beta 0.75";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -553,6 +553,18 @@ package com.primalscreen.utils.soundmanager {
 			}
 		}
 		
+		
+		
+		
+		// ====================== SOUND CONTROL FUNCTIONS ====================
+		
+		public function resumeSound(id) {};
+		public function pauseSound(id) {
+			if (verbosemode) {trace(traceprepend+"Stopping sound by id: " + id);};
+			
+			obliterate(id);
+		}
+		
 		public function stopSound(id) {
 			if (verbosemode) {trace(traceprepend+"Stopping sound by id: " + id);};
 			
@@ -560,6 +572,16 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		
+		
+		public function resumeAllSounds() {};
+		public function pauseAllSounds() {
+			if (verbosemode) {trace(traceprepend+"Stopping all sounds");};
+			
+			for (var x in queue) {
+				obliterate(queue[x]);
+			}
+						
+		}
 		public function stopAllSounds() {
 			if (verbosemode) {trace(traceprepend+"Stopping all sounds");};
 			
@@ -569,7 +591,16 @@ package com.primalscreen.utils.soundmanager {
 						
 		}
 		
-		
+		public function resumeChannel(soundchannel) {};
+		public function pauseChannel(soundchannel) {
+			if (verbosemode) {trace(traceprepend+"Stopping sounds on channel: "+soundchannel);};
+			
+			for (var x in queue) {
+				if (queue[x].soundchannel == soundchannel) {
+					obliterate(queue[x]);
+				}
+			}
+		}
 		public function stopChannel(soundchannel) {
 			if (verbosemode) {trace(traceprepend+"Stopping sounds on channel: "+soundchannel);};
 			
@@ -581,8 +612,18 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		
-		
-		
+		public function resumeSoundsFrom(target) {};
+		public function pauseSoundsFrom(target, deprecated = null) {
+			
+			var stopping = target.toString();
+			
+			for (var z in queue) {
+				if (queue[z].parentname == stopping) {
+					obliterate(queue[z]);
+				}
+			}
+			
+		}
 		public function stopSoundsFrom(target, deprecated = null) {
 			
 			var stopping = target.toString();
