@@ -289,7 +289,7 @@ function soundLoadedHandler(e) { /* executed when file is loaded */ }
 var mySoundID = playSound("filename.mp3");
 stopSound(mySoundID);
 </pre>
-<p>Play a few sounds, then when it's time to clean up a class before removeChilding it, stop all sounds that it or it's children called.</p>
+<p>Play a few sounds, then when it's time to clean up a class before removeChilding it, stop all sounds that it called.</p>
 <pre>
 soundManager.playSound("boing.mp3", this);
 soundManager.playSound("voiceover.mp3", this, {channel: "vo"});

@@ -43,41 +43,41 @@ package com.primalscreen.utils.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version = "beta 0.71";
+		private const version = "beta 0.74";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
 		private static var allowInstantiation:Boolean;
 		
+		// options
+		private static var verbosemode:Boolean;
+		private var root:String = "";
+		private static var queueInterval:Number = 100;
+		private static var traceprepend:String = "SoundManager: ";
+		private static var samePriorityInterrupts:Boolean = true;
+		
 		public static function getInstance(options:Object = null):SoundManager {
 			
 			if (instance == null) {
 				allowInstantiation = true;
-				instance = new SoundManager();
-				allowInstantiation = false;
-				
 				if (options) {
-					if (options.hasOwnProperty("queueInterval")) {queueInterval = options.queueInterval;};
-					if (options.hasOwnProperty("trace")) {traceprepend = options.trace;};
-					if (options.hasOwnProperty("verbose")) {verbose = options.verbose;};
-					if (options.hasOwnProperty("samePriorityInterrupts")) {samePriorityInterrupts = options.samePriorityInterrupts;};
-				};
+					instance = new SoundManager(options);
+				} else {
+					instance = new SoundManager();
+				}
+				allowInstantiation = false;
 			}
 			return instance;
 		}
 		// end singleton crap
 		
 		
-		// options
-		private static var verbose:Boolean;
-		private var root:String = "";
-		private static var queueInterval:Number = 100;
-		private static var traceprepend:String = "SoundManager: ";
-		private static var samePriorityInterrupts:Boolean = true;
+		
 		
 		// state, objects, stuff
 		private var SoundLoader: BulkLoader;
 		private var queue:Array = new Array();
+		private var loadingQueue:Array = new Array();
 		private var soundChannels:Object = new Object();
 		private var soundIDCounter = 0;
 		private var sequences:Object = new Object();
@@ -86,15 +86,22 @@ package com.primalscreen.utils.soundmanager {
 		private var defaultVolume:Number = 1;
 		
 		
-		public function SoundManager():void {
+		public function SoundManager(options:Object = null):void {
+			if (options) {
+				if (options.hasOwnProperty("queueInterval")) 			{queueInterval = options.queueInterval;};
+				if (options.hasOwnProperty("trace")) 					{traceprepend = options.trace;};
+				if (options.hasOwnProperty("verbose")) 					{verbosemode = options.verbose;};
+				if (options.hasOwnProperty("samePriorityInterrupts")) 	{samePriorityInterrupts = options.samePriorityInterrupts;};
+			};
+		
 			if (!allowInstantiation) {
 				throw new Error("Error: Instantiation failed: Use SoundManager.getInstance() instead of new.");
 			}
 			
-			if (verbose) {
-				trace("V: SoundManager "+version+" Instanciated in vebose/debug mode");
+			if (verbosemode) {
+				trace("SoundManager "+version+" Instanciated in vebose/debug mode");
 			} else {
-				trace("V: SoundManager "+version+" Instanciated");
+				trace("SoundManager "+version+" Instanciated");
 			}
 			
 			this.SoundLoader = new BulkLoader("SoundLoader");
@@ -155,6 +162,7 @@ package com.primalscreen.utils.soundmanager {
 			if (options.hasOwnProperty("event")) 	{newSound.event = options.event;};// else {newSound.event = "SOUND_FINISHED";};
 			newSound.parentname = parentName;
 			newSound.played = false;
+			newSound.ready = true;
 			
 			soundIDCounter++;
 			
@@ -166,7 +174,7 @@ package com.primalscreen.utils.soundmanager {
 			
 			
 			if (mutedChannels.indexOf(newSound.soundchannel) > -1) {
-				if (verbose) {trace(traceprepend+"Channel "+newSound.soundchannel+" is muted, cancelling sound.");};
+				if (verbosemode) {trace(traceprepend+"Channel "+newSound.soundchannel+" is muted, cancelling sound.");};
 				return false;
 			}
 			
@@ -175,10 +183,10 @@ package com.primalscreen.utils.soundmanager {
 			for (var x in queue) { // look through the queue
 				if (queue[x].soundchannel == newSound.soundchannel) { // if anything in the queue is on the same channel
 					if (queue[x].priority == newSound.priority && !samePriorityInterrupts) {// compare it's priority
-						if (verbose) {trace(traceprepend+"Same priority sound already playing, and 'samePriorityInterrupts' is set to false, so ignoring: "+queue[x].source);};
+						if (verbosemode) {trace(traceprepend+"Same priority sound already playing, and 'samePriorityInterrupts' is set to false, so ignoring: "+queue[x].source);};
 						return false;
 					} if (queue[x].priority > newSound.priority) {
-						if (verbose) {trace(traceprepend+"Higher priority sound already playing, ignoring: "+queue[x].source);};
+						if (verbosemode) {trace(traceprepend+"Higher priority sound already playing, ignoring: "+queue[x].source);};
 						return false;
 					} else {
 						obliterate(queue[x]);
@@ -188,6 +196,7 @@ package com.primalscreen.utils.soundmanager {
 			
 			
 			// no reason not to play sound, so play it
+			if (verbosemode) {trace(traceprepend+"Sound '"+newSound.source+"' added to queue on channel '"+newSound.soundchannel+"'")};
 			queue.push(newSound);
 			checkQueue();
 			return newSound.id;
@@ -206,15 +215,12 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		
-		
-		
 		private function checkQueue(e = null) {
 			if (queue.length > 0) {runQueue();};
 		}
 		
 		private function runQueue() {
-			
+						
 			for (var key in queue) {
 				
 				var played;
@@ -228,95 +234,32 @@ package com.primalscreen.utils.soundmanager {
 				
 				
 				
-				if (queue[key].played == false) {
+				
+				// failsafes
+				if (queue[key].hasOwnProperty("id")) {
+				
+					if (!queue[key].played && queue[key].ready) {
 					
-					if (queue[key].source is String) {
-						
-						// START OF PLAYING A SINGLE SOUND
-						if (SoundLoader.getContent(root + queue[key].source)) {
-							// it's loaded, play it
+										
+						if (queue[key].source is String) {
 							
-							
-							source = root + queue[key].source;
-							soundChannel = queue[key].soundchannel;
-							
-							interrupt = queue[key].interrupt;
-							volume = queue[key].volume;
-							
-							/*
-							for (var x in queue){
-								if (queue[x].soundchannel == soundChannel && queue[x].id != queue[key].id) {
-									if (soundChannels[soundChannel]) {soundChannels[soundChannel].stop();};
-									delete(soundChannels[soundChannel]);
-									delete(queue[x]);
-									if (verbose) {trace(traceprepend+"Interrupting");};
-								}
-							};
-							*/
-							
-							// sound playing bit
-							soundChannels[soundChannel] = new SoundChannel();
-							
-							if (verbose) {trace(traceprepend+"Playing '"+root + queue[key].source+"'");};
-							s = SoundLoader.getContent(source);
-							soundChannels[soundChannel] = s.play();
-							soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler, false, 0, true);
-							
-							v = new SoundTransform(volume);
-							soundChannels[soundChannel].soundTransform = v;
-							
-							played = true;
-							// end sound playing bit
-							
-							
-						} else {
-							// it's not yet loaded, load it
-							if (verbose) {trace(traceprepend+"File '" + root + queue[key].source + "' not loaded yet... loading...");};
-							SoundLoader.add(root + queue[key].source, {type:"sound"});
-							SoundLoader.start();
-						}
-						// END OF PLAYING A SINGLE SOUND
-						
-					} else {
-						// START OF PLAYING A SOUND SEQUENCE
-						
-						if (queue[key].source[0] is Number) {
-							// delay
-							played = true;
-							if (timeouts[queue[key].soundchannel]) {
-								clearTimeout(timeouts[queue[key].soundchannel]);
-							}
-							timeouts[queue[key].soundchannel] = setTimeout(delayComplete, queue[key].source[0], queue[key]);
-							
-							
-						} else {
-							// sound
-							if (SoundLoader.getContent(root + queue[key].source[0])) {
+							// START OF PLAYING A SINGLE SOUND
+							if (isSoundLoaded(queue[key].source)) {
 								// it's loaded, play it
-								source = root + queue[key].source[0];
+								
+								source = root + queue[key].source;
 								soundChannel = queue[key].soundchannel;
 								
 								interrupt = queue[key].interrupt;
 								volume = queue[key].volume;
 								
-								/*
-								for (var u in queue){
-									if (queue[u].soundchannel == soundChannel && queue[u].id != queue[key].id) {
-										if (soundChannels[soundChannel]) {soundChannels[soundChannel].stop();};
-										delete(soundChannels[soundChannel]);
-										delete(queue[u]);
-										if (verbose) {trace(traceprepend+"Interrupting");};
-										
-									}
-								};
-								*/
-								
 								// sound playing bit
 								soundChannels[soundChannel] = new SoundChannel();
 								
+								if (verbosemode) {trace(traceprepend+"Playing '"+root + queue[key].source+"'");};
 								s = SoundLoader.getContent(source);
 								soundChannels[soundChannel] = s.play();
-								soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundSequencePartCompleteEventHandler, false, 0, true);
+								soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler, false, 0, true);
 								
 								v = new SoundTransform(volume);
 								soundChannels[soundChannel].soundTransform = v;
@@ -327,24 +270,130 @@ package com.primalscreen.utils.soundmanager {
 								
 							} else {
 								// it's not yet loaded, load it
-								for (var w in queue[key].source){
-									if (queue[key].source[w] is String) {
-										SoundLoader.add(root + queue[key].source[w], {type:"sound"});
-									}
-								};
+								if (verbosemode) {trace(traceprepend+"File '" + root + queue[key].source + "' not loaded yet... loading...");};
+								queue[key].ready = false;
+								SoundLoader.add(root + queue[key].source, {type:"sound"});
+								SoundLoader.addEventListener(BulkLoader.COMPLETE, somethingLoaded, false, 0, true);
+								SoundLoader.addEventListener(BulkLoader.ERROR, loadError);
 								SoundLoader.start();
+								
+								var newLoadingSound = new Object();
+								newLoadingSound.id = queue[key].id;
+								newLoadingSound.source = queue[key].source;
+								loadingQueue.push(newLoadingSound);
 							}
+							// END OF PLAYING A SINGLE SOUND
+							
+						} else {
+							// START OF PLAYING A SOUND SEQUENCE
+							
+							if (queue[key].source[0] is Number) {
+								// delay
+								played = true;
+								if (timeouts[queue[key].soundchannel]) {
+									clearTimeout(timeouts[queue[key].soundchannel]);
+								}
+								timeouts[queue[key].soundchannel] = setTimeout(delayComplete, queue[key].source[0], queue[key]);
+								
+								
+							} else {
+								// sound
+								if (isSeqLoaded(queue[key].source)) {
+									// it's loaded, play it
+									source = root + queue[key].source[0];
+									soundChannel = queue[key].soundchannel;
+									
+									interrupt = queue[key].interrupt;
+									volume = queue[key].volume;
+																	
+									// sound playing bit
+									soundChannels[soundChannel] = new SoundChannel();
+									
+									s = SoundLoader.getContent(source);
+									soundChannels[soundChannel] = s.play();
+									soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundSequencePartCompleteEventHandler, false, 0, true);
+									
+									v = new SoundTransform(volume);
+									soundChannels[soundChannel].soundTransform = v;
+									
+									played = true;
+									// end sound playing bit
+									
+									
+								} else {
+									// it's not yet loaded, load it
+									queue[key].ready = false;
+									for (var w in queue[key].source){
+										if (queue[key].source[w] is String) {
+											SoundLoader.add(root + queue[key].source[w], {type:"sound"});
+										}
+									};
+									SoundLoader.addEventListener(BulkLoader.COMPLETE, somethingLoaded, false, 0, true);
+									SoundLoader.addEventListener(BulkLoader.ERROR, loadError);
+									SoundLoader.start();
+									
+									var newLoadingSoundSeq = new Object();
+									newLoadingSoundSeq.id = queue[key].id;
+									newLoadingSoundSeq.source = queue[key].source;
+									loadingQueue.push(newLoadingSoundSeq);
+								}
+							}
+							
+							// END OF PLAYING A SOUND SEQUENCE
 						}
 						
-						// END OF PLAYING A SOUND SEQUENCE
-					}
-					
-					if (played) {
-						queue[key].played = true;
+						if (played) {
+							queue[key].played = true;
+						};
 					};
-				};
+				} else {
+					if (verbosemode) {trace(traceprepend+"Something went wrong, this is a failsafe.");};
+				}
 			};
 		}
+		
+		
+		
+		private function somethingLoaded(e) {
+			if (verbosemode) {trace(traceprepend+"A load was successful, adding back to play queue.");};
+			
+			for (var x in loadingQueue) {
+				var loaded = false;
+				if (loadingQueue[x].source is Array) {
+					loaded = isSeqLoaded(loadingQueue[x].source);
+				} else if (loadingQueue[x].source is String) {
+					loaded = isSoundLoaded(loadingQueue[x].source);
+				}
+				if (loaded) {
+					for (var y in queue) {
+						if (queue[y].id == loadingQueue[x].id) {
+							queue[y].ready = true;
+						}
+					}
+				}
+			}
+		}
+		
+		private function isSeqLoaded(seq:Array) {
+			for (var x in seq) {
+				if (seq[x] is String) {
+					if (SoundLoader.getContent(root + seq[x])) {return true;};
+				}
+			}
+			return false;
+		}
+		
+		private function isSoundLoaded(s:String) {
+			if (SoundLoader.getContent(root + s)) {return true;};
+			return false;
+		}
+		
+		private function loadError(e) {
+			trace(traceprepend+"A load failed, you're probably missing a file.");
+		}
+		
+		
+		
 		
 		
 		private function soundCompleteEventHandler(e) {
@@ -370,11 +419,11 @@ package com.primalscreen.utils.soundmanager {
 				}
 			}
 			
-			if (verbose) {trace(traceprepend+"Sound finished: " + s.id);};
+			if (verbosemode) {trace(traceprepend+"Sound finished: " + s.id);};
 			
 			// dispatch the end event, if requested
 			if (s.event != null && s.event is String) {
-				if (verbose) {trace(traceprepend+"Dispatching event: '" + s.event + "'");};
+				if (verbosemode) {trace(traceprepend+"Dispatching event: '" + s.event + "'");};
 				dispatchEvent(new Event(s.event, true));
 			}
 			
@@ -434,7 +483,7 @@ package com.primalscreen.utils.soundmanager {
 					}
 				}
 				
-				if (verbose) {trace(traceprepend+"Sound finished: " + soundID);};
+				if (verbosemode) {trace(traceprepend+"Sound finished: " + soundID);};
 				
 				
 				for (var y in queue) {
@@ -445,7 +494,7 @@ package com.primalscreen.utils.soundmanager {
 						
 						// dispatch the end event, if requested
 						if (s.source.length == 0 && s.event != null && s.event is String) {
-							if (verbose) {trace(traceprepend+"Dispatching event: '" + s.event + "'");};
+							if (verbosemode) {trace(traceprepend+"Dispatching event: '" + s.event + "'");};
 							dispatchEvent(new Event(s.event, true));
 						}
 						// kill the sound channel
@@ -480,7 +529,7 @@ package com.primalscreen.utils.soundmanager {
 			
 				for (var x in queue) {
 					if (queue[x].id == sound) {
-						if (verbose) {trace(traceprepend+"Obliterating Sound: "+queue[x].source);};
+						if (verbosemode) {trace(traceprepend+"Obliterating Sound: "+queue[x].source);};
 						if (soundChannels.hasOwnProperty(queue[x].soundchannel)) {
 							soundChannels[queue[x].soundchannel].stop();
 							delete(soundChannels[queue[x].soundchannel]);
@@ -493,7 +542,7 @@ package com.primalscreen.utils.soundmanager {
 				
 				for (var y in queue) {
 					if (queue[y] === sound) {
-						if (verbose) {trace(traceprepend+"Obliterating Sound: "+queue[y].source);};
+						if (verbosemode) {trace(traceprepend+"Obliterating Sound: "+queue[y].source);};
 						if (soundChannels.hasOwnProperty(queue[y].soundchannel)) {
 							soundChannels[queue[y].soundchannel].stop();
 							delete(soundChannels[queue[y].soundchannel]);
@@ -505,14 +554,14 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		public function stopSound(id) {
-			if (verbose) {trace(traceprepend+"Stopping sound by id: " + id);};
+			if (verbosemode) {trace(traceprepend+"Stopping sound by id: " + id);};
 			
 			obliterate(id);
 		}
 		
 		
 		public function stopAllSounds() {
-			if (verbose) {trace(traceprepend+"Stopping all sounds");};
+			if (verbosemode) {trace(traceprepend+"Stopping all sounds");};
 			
 			for (var x in queue) {
 				obliterate(queue[x]);
@@ -522,7 +571,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		public function stopChannel(soundchannel) {
-			if (verbose) {trace(traceprepend+"Stopping sounds on channel: "+soundchannel);};
+			if (verbosemode) {trace(traceprepend+"Stopping sounds on channel: "+soundchannel);};
 			
 			for (var x in queue) {
 				if (queue[x].soundchannel == soundchannel) {
@@ -557,12 +606,12 @@ package com.primalscreen.utils.soundmanager {
 			if (channel) {
 				if (mutedChannels.indexOf(channel) == -1) {
 					mutedChannels.push(channel);
-					if (verbose) {trace(traceprepend+"Muting channel: "+channel);};
+					if (verbosemode) {trace(traceprepend+"Muting channel: "+channel);};
 				} else {
-					if (verbose) {trace(traceprepend+"Channel already muted: "+channel);};
+					if (verbosemode) {trace(traceprepend+"Channel already muted: "+channel);};
 				}
 			} else {
-				if (verbose) {trace(traceprepend+"Error: Used muteChannel without naming a channel to mute.");};
+				if (verbosemode) {trace(traceprepend+"Error: Used muteChannel without naming a channel to mute.");};
 			}
 		}
 		
@@ -575,12 +624,12 @@ package com.primalscreen.utils.soundmanager {
 			if (channel) {
 				if (mutedChannels.indexOf(channel) > -1) {
 					mutedChannels.splice(mutedChannels.indexOf(channel), 1);
-					if (verbose) {trace(traceprepend+"Unmuting channel: "+channel);};
+					if (verbosemode) {trace(traceprepend+"Unmuting channel: "+channel);};
 				} else {
-					if (verbose) {trace(traceprepend+"Channel not muted: "+channel);};
+					if (verbosemode) {trace(traceprepend+"Channel not muted: "+channel);};
 				}
 			} else {
-				if (verbose) {trace(traceprepend+"Error: Used unmuteChannel without naming a channel to unmute.");};
+				if (verbosemode) {trace(traceprepend+"Error: Used unmuteChannel without naming a channel to unmute.");};
 			}
 		}
 		
