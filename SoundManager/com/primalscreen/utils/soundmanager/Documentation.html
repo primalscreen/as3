@@ -22,14 +22,17 @@
 			color: #205F87;
 		}
 		h2 {
-			font-size: 15pt;
+			font-size: 16pt;
 			padding-top: 40px;
 			color: #205F87;
 		}
 		h3 {
 			font-size: 12pt;
-			padding-top: 20px;
+			padding-top: 50px;
 			color: #205F87;
+		}
+		h3.lesspadding {
+			padding-top: 0px;
 		}
 		
 		.important {
@@ -122,7 +125,7 @@ soundManager = SoundManager.getInstance();
 
 	
 <h2>Usage</h2>
-<h3 style="margin-top:-20px;">SoundManager.getInstance() Options</h3>
+<h3 class="lesspadding">SoundManager.getInstance()</h3>
 <p>
 	When you first instanciate SoundManager with the <span class="fakepre">getInstance()</span> function, you can pass it an options object. 
 	The available options are:
@@ -192,7 +195,7 @@ soundManager.playSound("assets/testaudio.mp3", this, {
 
 
 
-<h3>Single sounds, sound sequences, and delays in playSound()'s source (first) argument</h3>
+<h3>playSound()'s 1st Argument: Single sounds, Sound Sequences, and Delays</h3>
 <p>The first argument sent to <span class="fakepre">playSound()</span> is very dynamic. The simplest example you've already seen is sending it a 
 string, the filename you want to play. If you want to play a sequence of sounds, in order, one after the other,
 you can send it an array:</p>
@@ -216,28 +219,13 @@ playSound(["filename1.mp3", 500, "filename2.mp3", 500, "filename3.mp3"]);
 
 
 
-
-<h3>Other SoundManager functions:</h3>
-Many of these functions need an id argument to work. That's the id of the sound, and it's return as a Number by the playSound function. If you know 
-you'll need to refer back to a sound later, to stop it or change it's volume, do this:
+<h3>Playback Control Functions</h3>
+<p>Many of these functions need an id argument to work. That's the id of the sound, and it's return as a Number by the playSound function. If you know 
+you'll need to refer back to a sound later, to stop it or change it's volume, do this:</p>
 <pre>
 var mySound = playSound("filename.mp3");
 </pre> 
 <ul>
-	<li>
-		<span class="fakepre">setPath("asset/sounds/");</span><br>
-		Sets the location, relative to the document root, of the files you're trying to load. Make sure you leave a 
-		<span class="fakepre">/</span> at the end. <b>Be carfeul. This applies to your whole app, because SoundManager is a singleton. So if you're
-		collaborating with others on a large app and they're using SoundManager too, don't go changing the path, because it applies to everyone.</b>
-	</li>
-	<li>
-		<span class="fakepre">setVolume(0.8);</span><br>
-		Sets the default volume for all <em>new</em> sounds. 0 = mute, 1 = 100%. <b>Again, this is for everything in the app.</b>
-	</li>
-	<li>
-		<span class="fakepre">adjustVolume(id, volume);</span><br>
-		Sets the volume of a given sound, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
-	</li>
 	<li>
 		<span class="fakepre">stopSound(id);</span><br>
 		Stops the selected sound by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
@@ -299,6 +287,30 @@ var mySound = playSound("filename.mp3");
 	<li>
 		<span class="fakepre">unmuteChannel("channel_name");</span><br>
 		Opposite of <span class="fakepre">muteChannel()</span>.
+	</li>
+</ul>
+
+
+
+
+
+
+
+<h3>Other SoundManager functions:</h3>
+<ul>
+	<li>
+		<span class="fakepre">setPath("asset/sounds/");</span><br>
+		Sets the location, relative to the document root, of the files you're trying to load. Make sure you leave a 
+		<span class="fakepre">/</span> at the end. <b>Be carfeul. This applies to your whole app, because SoundManager is a singleton. So if you're
+		collaborating with others on a large app and they're using SoundManager too, don't go changing the path, because it applies to everyone.</b>
+	</li>
+	<li>
+		<span class="fakepre">setVolume(0.8);</span><br>
+		Sets the default volume for all <em>new</em> sounds. 0 = mute, 1 = 100%. <b>Again, this is for everything in the app.</b>
+	</li>
+	<li>
+		<span class="fakepre">adjustVolume(id, volume);</span><br>
+		Sets the volume of a given sound, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
 	</li>
 	<li>
 		<span class="fakepre">preload("filename", "MY_PRELOAD_EVENT");</span> or<br>
