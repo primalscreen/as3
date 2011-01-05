@@ -152,7 +152,7 @@ soundManager = SoundManager.getInstance({verbose: true, trace:"SoundManager says
 
 <h3>playSound()</h3>
 <p>Now that you have a singleton instance called of SoundManager called soundManager, let's play a sound:</p>
-<pre>soundManager.playSound("assets/testaudio.mp3");</pre>
+<pre>soundManager.playSound("assets/testaudio.mp3", this);</pre>
 <p>This is the simplest example. It loads the mp3 with bulkloader and plays it when ready. playSound has three arguments. In order they are:</p>
 
 <ul>

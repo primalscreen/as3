@@ -43,7 +43,7 @@ package com.primalscreen.utils.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version = "beta 0.76";
+		private const version = "beta 0.77";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -143,6 +143,10 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		public function playSound(sound, parent = null, options:Object = null) {
+			
+			if (!parent) {
+				throw new Error(traceprepend+"You must put supply a reference to the calling class in the second argument of playSound(). In 99% of cases, you'll use 'this'.");
+			}
 			
 			var parentName = parent.toString();
 			parent = null;
