@@ -226,11 +226,13 @@ var mySound = playSound("filename.mp3");
 <ul>
 	<li>
 		<span class="fakepre">setPath("asset/sounds/");</span><br>
-		Sets the location, relative to the document root, of the files you're trying to load. Make sure you leave a <span class="fakepre">/</span> at the end.
+		Sets the location, relative to the document root, of the files you're trying to load. Make sure you leave a 
+		<span class="fakepre">/</span> at the end. <b>Be carfeul. This applies to your whole app, because SoundManager is a singleton. So if you're
+		collaborating with others on a large app and they're using SoundManager too, don't go changing the path, because it applies to everyone.</b>
 	</li>
 	<li>
 		<span class="fakepre">setVolume(0.8);</span><br>
-		Sets the default volume for all <em>new</em> sounds. 0 = mute, 1 = 100%.
+		Sets the default volume for all <em>new</em> sounds. 0 = mute, 1 = 100%. <b>Again, this is for everything in the app.</b>
 	</li>
 	<li>
 		<span class="fakepre">adjustVolume(id, volume);</span><br>
@@ -241,25 +243,58 @@ var mySound = playSound("filename.mp3");
 		Stops the selected sound by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
 	</li>
 	<li>
+		<span class="fakepre">pauseSound(id);</span><br>
+		Pauses the selected sound by it's ID.
+	</li>
+	<li>
+		<span class="fakepre">resumeSound(id);</span><br>
+		Resumes the selected sound by it's ID.
+	</li>
+	<li>
 		<span class="fakepre">stopAllSounds();</span><br>
-		Stops all sounds. Every single one.
+		Stops all sounds. Every single one. Even paused ones.
+	</li>
+	<li>
+		<span class="fakepre">pauseAllSounds();</span><br>
+		Pauses all sounds. Every single one. Anywhere in your app.
+	</li>
+	<li>
+		<span class="fakepre">resumeAllSounds();</span><br>
+		Resume all sounds. Every single one. 
 	</li>
 	<li>
 		<span class="fakepre">stopChannel("channel_name");</span><br>
 		Stops all sounds that are playing on the given channel.
 	</li>
+	<li>
+		<span class="fakepre">pauseChannel("channel_name");</span><br>
+		Pauses all sounds that are playing on the given channel.
+	</li>
+	<li>
+		<span class="fakepre">resumeChannel("channel_name");</span><br>
+		Resume all sounds that are paused on the given channel.
+	</li>
 	
 	<li>
 		<span class="fakepre">stopSoundsFrom(this);</span><br>
-		For garbage collection. Stops all sounds that were created by the class/object/movieclip given in the first parameter. There isn't 
+		Stops all sounds that were created by the class/object/movieclip given in the first parameter. There isn't 
 		much reason to use anything but <span class="fakepre">this</span> here. When you pass in <span class="fakepre">this</span> 
 		as the second parameter for <span class="fakepre">playSound()</span>, SoundManager keeps track of which class originally called 
 		the <span class="fakepre">playSound()</span> function. This means that if you call <span class="fakepre">stopSoundsFrom(this)</span> 
-		later from the same class, it will stop all sounds called from the class.</li>
+		later from the same class, it will stop all sounds called from the class.
+	</li>
+	<li>
+		<span class="fakepre">pauseSoundsFrom(this);</span><br>
+		In case you haven't already guessed, this function has similar functionality to 
+		<span class="fakepre">stopSoundsFrom(this)</span>, but for pausing. Succinctly, pauses all paused sounds from the same caller.
+	</li>
+	<li>
+		<span class="fakepre">resumeSoundsFrom(this);</span><br>
+		Resumes all paused sounds from the same caller.
+	</li>
 	<li>
 		<span class="fakepre">muteChannel("channel_name");</span><br>
-		Prevents sounds from playing on a given channel. Does not stop sounds already playing on that channel. 
-		Use <span class="fakepre">stopChannel()</span> for that.
+		Mutes all sounds on the given channel.
 	</li>
 	<li>
 		<span class="fakepre">unmuteChannel("channel_name");</span><br>

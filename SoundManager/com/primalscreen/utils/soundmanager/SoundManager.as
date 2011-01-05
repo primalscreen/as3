@@ -43,7 +43,7 @@ package com.primalscreen.utils.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version = "beta 0.75";
+		private const version = "beta 0.76";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -162,6 +162,8 @@ package com.primalscreen.utils.soundmanager {
 			if (options.hasOwnProperty("event")) 	{newSound.event = options.event;};// else {newSound.event = "SOUND_FINISHED";};
 			newSound.parentname = parentName;
 			newSound.played = false;
+			newSound.paused = false;
+			newSound.pausePoint = 0;
 			newSound.ready = true;
 			
 			soundIDCounter++;
@@ -253,12 +255,16 @@ package com.primalscreen.utils.soundmanager {
 								interrupt = queue[key].interrupt;
 								volume = queue[key].volume;
 								
+								if (queue[key].pausePoint) {
+									if (verbosemode) {trace(traceprepend+"Sound was previously paused at "+ queue[key].pausePoint + " seconds.");};
+								}
+								
 								// sound playing bit
 								soundChannels[soundChannel] = new SoundChannel();
 								
 								if (verbosemode) {trace(traceprepend+"Playing '"+root + queue[key].source+"'");};
 								s = SoundLoader.getContent(source);
-								soundChannels[soundChannel] = s.play();
+								soundChannels[soundChannel] = s.play(queue[key].pausePoint);
 								soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler, false, 0, true);
 								
 								v = new SoundTransform(volume);
@@ -310,7 +316,7 @@ package com.primalscreen.utils.soundmanager {
 									soundChannels[soundChannel] = new SoundChannel();
 									
 									s = SoundLoader.getContent(source);
-									soundChannels[soundChannel] = s.play();
+									soundChannels[soundChannel] = s.play(queue[key].pausePoint);
 									soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundSequencePartCompleteEventHandler, false, 0, true);
 									
 									v = new SoundTransform(volume);
@@ -342,6 +348,7 @@ package com.primalscreen.utils.soundmanager {
 							// END OF PLAYING A SOUND SEQUENCE
 						}
 						
+						// set the played value if we were able to play it
 						if (played) {
 							queue[key].played = true;
 						};
@@ -558,11 +565,36 @@ package com.primalscreen.utils.soundmanager {
 		
 		// ====================== SOUND CONTROL FUNCTIONS ====================
 		
-		public function resumeSound(id) {};
+		public function resumeSound(id) {
+			// note that this function doesn't actually resume a sound, it just switches it back to "unplayed"
+			// in the queue, so it will be played on the next loop. When it's played, it remembers it's position.
+			for (var x in queue) {
+				if (queue[x].id == id) {
+					if (queue[x].paused) {
+						if (verbosemode) {trace(traceprepend+"Resuming paused sound by id: " + id);};
+						//soundChannels[queue[x].soundchannel].play();
+						queue[x].paused = false;
+						queue[x].played = false;
+					} else {
+						if (verbosemode) {trace(traceprepend+"Tried to resume audio that wasn't paused.");};
+					}
+				}
+			}
+		};
 		public function pauseSound(id) {
-			if (verbosemode) {trace(traceprepend+"Stopping sound by id: " + id);};
-			
-			obliterate(id);
+			if (verbosemode) {trace(traceprepend+"Pausing sound by id: " + id);};
+						
+			for (var x in queue) {
+				if (queue[x].id == id) {
+					if (soundChannels.hasOwnProperty(queue[x].soundchannel)) {
+						var pausePoint = soundChannels[queue[x].soundchannel].position;
+						soundChannels[queue[x].soundchannel].stop();
+						delete(soundChannels[queue[x].soundchannel]);
+						queue[x].pausePoint = pausePoint;
+						queue[x].paused = true;
+					}
+				}
+			}
 		}
 		
 		public function stopSound(id) {
@@ -573,12 +605,18 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		public function resumeAllSounds() {};
-		public function pauseAllSounds() {
-			if (verbosemode) {trace(traceprepend+"Stopping all sounds");};
+		public function resumeAllSounds() {
+			if (verbosemode) {trace(traceprepend+"Resuming all sounds");};
 			
 			for (var x in queue) {
-				obliterate(queue[x]);
+				resumeSound(queue[x].id);
+			}
+		};
+		public function pauseAllSounds() {
+			if (verbosemode) {trace(traceprepend+"Pausing all sounds");};
+			
+			for (var x in queue) {
+				pauseSound(queue[x].id);
 			}
 						
 		}
@@ -591,13 +629,20 @@ package com.primalscreen.utils.soundmanager {
 						
 		}
 		
-		public function resumeChannel(soundchannel) {};
+		public function resumeChannel(soundchannel) {
+			if (verbosemode) {trace(traceprepend+"Resuming sounds on channel: "+soundchannel);};
+			for (var x in queue) {
+				if (queue[x].soundchannel == soundchannel) {
+					resumeSound(queue[x].id);
+				}
+			}
+		};
 		public function pauseChannel(soundchannel) {
-			if (verbosemode) {trace(traceprepend+"Stopping sounds on channel: "+soundchannel);};
+			if (verbosemode) {trace(traceprepend+"Pausing sounds on channel: "+soundchannel);};
 			
 			for (var x in queue) {
 				if (queue[x].soundchannel == soundchannel) {
-					obliterate(queue[x]);
+					pauseSound(queue[x].id);
 				}
 			}
 		}
@@ -612,14 +657,23 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		
-		public function resumeSoundsFrom(target) {};
+		public function resumeSoundsFrom(target) {
+			
+			var resuming = target.toString();
+			
+			for (var x in queue) {
+				if (queue[x].parentname == resuming) {
+					resumeSound(queue[x].id);
+				}
+			}
+		};
 		public function pauseSoundsFrom(target, deprecated = null) {
 			
 			var stopping = target.toString();
 			
-			for (var z in queue) {
-				if (queue[z].parentname == stopping) {
-					obliterate(queue[z]);
+			for (var x in queue) {
+				if (queue[x].parentname == stopping) {
+					pauseSound(queue[x].id);
 				}
 			}
 			
