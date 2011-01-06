@@ -43,7 +43,7 @@ package com.primalscreen.utils.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version = "beta 0.77";
+		private const version = "beta 0.78";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -144,26 +144,26 @@ package com.primalscreen.utils.soundmanager {
 		
 		public function playSound(sound, parent = null, options:Object = null) {
 			
-			if (!parent) {
-				throw new Error(traceprepend+"You must put supply a reference to the calling class in the second argument of playSound(). In 99% of cases, you'll use 'this'.");
+			var parentName = "";
+			if (parent) {
+				parentName = parent.toString();
+				parent = null;
+			} else {
+				trace(traceprepend+"Error: You didn't specify a caller in the second argument for the sound: "+sound+". I'm playing it anyway, but you really should put a reference to the caller, 'this' in there or you won't be able to use some of SoundManager's functions.");
 			}
-			
-			var parentName = parent.toString();
-			parent = null;
-			
-			
+						
 			var newSound:Object 	= new Object();
 			newSound.id				= soundIDCounter;
 			newSound.source 		= sound;
-			if (options.hasOwnProperty("channel")) {
+			if (options && options.hasOwnProperty("channel")) {
 				newSound.soundchannel = options.channel;
 			} else {
 				newSound.soundchannel = "soundchannel" + soundIDCounter;
 			}
-			if (options.hasOwnProperty("priority")) {newSound.priority = options.priority;} else {newSound.priority = 0;};
-			if (options.hasOwnProperty("volume")) 	{newSound.volume = options.volume;} else {newSound.volume = defaultVolume;};
-			if (options.hasOwnProperty("loop")) 	{newSound.loop = options.loop;} else {newSound.loop = 1;};
-			if (options.hasOwnProperty("event")) 	{newSound.event = options.event;};// else {newSound.event = "SOUND_FINISHED";};
+			if (options && options.hasOwnProperty("priority")) {newSound.priority = options.priority;} else {newSound.priority = 0;};
+			if (options && options.hasOwnProperty("volume")) 	{newSound.volume = options.volume;} else {newSound.volume = defaultVolume;};
+			if (options && options.hasOwnProperty("loop")) 	{newSound.loop = options.loop;} else {newSound.loop = 1;};
+			if (options && options.hasOwnProperty("event")) 	{newSound.event = options.event;};// else {newSound.event = "SOUND_FINISHED";};
 			newSound.parentname = parentName;
 			newSound.played = false;
 			newSound.paused = false;
@@ -203,6 +203,7 @@ package com.primalscreen.utils.soundmanager {
 			
 			// no reason not to play sound, so play it
 			if (verbosemode) {trace(traceprepend+"Sound '"+newSound.source+"' added to queue on channel '"+newSound.soundchannel+"'")};
+			if (!options) {if (verbosemode) {trace(traceprepend+"You didn't want any options on '"+newSound.source+"'? That's weird. Options are so good. I don't understand why someone wouldn't want any. Do you have something against options?");};};
 			queue.push(newSound);
 			checkQueue();
 			return newSound.id;
@@ -222,7 +223,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		private function checkQueue(e = null) {
-			if (queue.length > 0) {runQueue();};
+			if (queue && queue.length > 0) {runQueue();};
 		}
 		
 		private function runQueue() {
@@ -586,7 +587,7 @@ package com.primalscreen.utils.soundmanager {
 			}
 		};
 		public function pauseSound(id) {
-			if (verbosemode) {trace(traceprepend+"Pausing sound by id: " + id);};
+			if (verbosemode) {trace(traceprepend+"Ssshhhh! Pausing sound by id: " + id);};
 						
 			for (var x in queue) {
 				if (queue[x].id == id) {
@@ -602,7 +603,7 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		public function stopSound(id) {
-			if (verbosemode) {trace(traceprepend+"Stopping sound by id: " + id);};
+			if (verbosemode) {trace(traceprepend+"Stopping sound with the id, " + id + ", without prejudice.");};
 			
 			obliterate(id);
 		}
@@ -610,14 +611,14 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		public function resumeAllSounds() {
-			if (verbosemode) {trace(traceprepend+"Resuming all sounds");};
+			if (verbosemode) {trace(traceprepend+"All together now! Resuming all sounds.");};
 			
 			for (var x in queue) {
 				resumeSound(queue[x].id);
 			}
 		};
 		public function pauseAllSounds() {
-			if (verbosemode) {trace(traceprepend+"Pausing all sounds");};
+			if (verbosemode) {trace(traceprepend+"Everybody, ssshhhh! Pausing all sounds.");};
 			
 			for (var x in queue) {
 				pauseSound(queue[x].id);
@@ -625,7 +626,7 @@ package com.primalscreen.utils.soundmanager {
 						
 		}
 		public function stopAllSounds() {
-			if (verbosemode) {trace(traceprepend+"Stopping all sounds");};
+			if (verbosemode) {trace(traceprepend+"Everybody shut up. Stopping all sounds.");};
 			
 			for (var x in queue) {
 				obliterate(queue[x]);
@@ -634,7 +635,7 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		public function resumeChannel(soundchannel) {
-			if (verbosemode) {trace(traceprepend+"Resuming sounds on channel: "+soundchannel);};
+			if (verbosemode) {trace(traceprepend+"Ok just you guys. Resuming sounds on channel: "+soundchannel);};
 			for (var x in queue) {
 				if (queue[x].soundchannel == soundchannel) {
 					resumeSound(queue[x].id);
@@ -642,7 +643,7 @@ package com.primalscreen.utils.soundmanager {
 			}
 		};
 		public function pauseChannel(soundchannel) {
-			if (verbosemode) {trace(traceprepend+"Pausing sounds on channel: "+soundchannel);};
+			if (verbosemode) {trace(traceprepend+"You guys, ssshhh! Pausing sounds on channel: "+soundchannel);};
 			
 			for (var x in queue) {
 				if (queue[x].soundchannel == soundchannel) {
@@ -651,7 +652,7 @@ package com.primalscreen.utils.soundmanager {
 			}
 		}
 		public function stopChannel(soundchannel) {
-			if (verbosemode) {trace(traceprepend+"Stopping sounds on channel: "+soundchannel);};
+			if (verbosemode) {trace(traceprepend+"You guys, shut up! Stopping sounds on channel: "+soundchannel);};
 			
 			for (var x in queue) {
 				if (queue[x].soundchannel == soundchannel) {
@@ -663,7 +664,8 @@ package com.primalscreen.utils.soundmanager {
 		
 		public function resumeSoundsFrom(target) {
 			
-			var resuming = target.toString();
+			var parent = target.toString();
+			if (verbosemode) {trace(traceprepend+"Resuming sounds originally called by "+parent);};
 			
 			for (var x in queue) {
 				if (queue[x].parentname == resuming) {
@@ -673,7 +675,8 @@ package com.primalscreen.utils.soundmanager {
 		};
 		public function pauseSoundsFrom(target, deprecated = null) {
 			
-			var stopping = target.toString();
+			var parent = target.toString();
+			if (verbosemode) {trace(traceprepend+"Pausing sounds originally called by "+parent);};
 			
 			for (var x in queue) {
 				if (queue[x].parentname == stopping) {
@@ -684,10 +687,11 @@ package com.primalscreen.utils.soundmanager {
 		}
 		public function stopSoundsFrom(target, deprecated = null) {
 			
-			var stopping = target.toString();
+			var parent = target.toString();
+			if (verbosemode) {trace(traceprepend+"Stopping sounds originally called by "+parent);};
 			
 			for (var z in queue) {
-				if (queue[z].parentname == stopping) {
+				if (queue[z].parentname == parent) {
 					obliterate(queue[z]);
 				}
 			}
@@ -705,9 +709,9 @@ package com.primalscreen.utils.soundmanager {
 			if (channel) {
 				if (mutedChannels.indexOf(channel) == -1) {
 					mutedChannels.push(channel);
-					if (verbosemode) {trace(traceprepend+"Muting channel: "+channel);};
+					if (verbosemode) {trace(traceprepend+"Be vewwy vewwy quiet. Muting channel, "+channel);};
 				} else {
-					if (verbosemode) {trace(traceprepend+"Channel already muted: "+channel);};
+					if (verbosemode) {trace(traceprepend+"Alweady hunting wabbits. Channel already muted: "+channel);};
 				}
 			} else {
 				if (verbosemode) {trace(traceprepend+"Error: Used muteChannel without naming a channel to mute.");};
@@ -723,7 +727,7 @@ package com.primalscreen.utils.soundmanager {
 			if (channel) {
 				if (mutedChannels.indexOf(channel) > -1) {
 					mutedChannels.splice(mutedChannels.indexOf(channel), 1);
-					if (verbosemode) {trace(traceprepend+"Unmuting channel: "+channel);};
+					if (verbosemode) {trace(traceprepend+"Wabbit season is over. Unmuting channel: "+channel);};
 				} else {
 					if (verbosemode) {trace(traceprepend+"Channel not muted: "+channel);};
 				}
