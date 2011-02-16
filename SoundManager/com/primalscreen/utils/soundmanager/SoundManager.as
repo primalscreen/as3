@@ -34,39 +34,72 @@ package com.primalscreen.utils.soundmanager {
 	import flash.events.*;
 	import flash.media.*;
 	import flash.utils.*;
+	import flash.errors.*;
 	
 	import br.com.stimuli.loading.BulkLoader;
 	import br.com.stimuli.loading.BulkProgressEvent;
+	import br.com.stimuli.loading.loadingtypes.LoadingItem;
 	
 	
 	
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version = "beta 0.78";
+		private const version = "beta 0.84";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
 		private static var allowInstantiation:Boolean;
 		
 		// options
-		private static var verbosemode:Boolean;
-		private var root:String = "";
+		private static var verbosemode:Number = 5;
+		private 	   var root:String = "";
 		private static var queueInterval:Number = 100;
 		private static var traceprepend:String = "SoundManager: ";
 		private static var samePriorityInterrupts:Boolean = true;
 		
+		// levels of verbosity
+		public static const SILENT:Number = 0;
+		public static const NORMAL:Number = 5;
+		public static const VERBOSE:Number = 10;
+		public static const ANNOYINGLY_CHATTY:Number = 15;
+		public static const ALL:Number = 15;
+		
 		public static function getInstance(options:Object = null):SoundManager {
 			
+			if (options) {
+				if (options.hasOwnProperty("queueInterval")) 				{queueInterval = options.queueInterval;};
+				if (options.hasOwnProperty("trace")) 						{traceprepend = options.trace;};
+				if (options.hasOwnProperty("samePriorityInterrupts")) 		{samePriorityInterrupts = options.samePriorityInterrupts;};
+				if (options.hasOwnProperty("verbose")) {
+					if (options.verbose is Boolean) {
+						trace("Booleans for verbose mode have been deprecated. Read the docs to see the new options.");
+						if (options.verbose) {
+							verbosemode = 10;
+						} else {
+							verbosemode = 5;
+						}
+					} else if (options.verbose is Number) {
+						verbosemode = options.verbose;
+					}
+					if (verbosemode == 0) {
+						trace(traceprepend+"Switching to silent mode");
+					} else if (verbosemode <= 5) {
+						trace(traceprepend+"Switching to normal mode");
+					} else if (verbosemode <= 10) {
+						trace(traceprepend+"Switching to verbose mode");
+					} else if (verbosemode <= 15) {
+						trace(traceprepend+"Switching to annoyingly chatty mode");
+					}
+				};
+				
+			}
 			if (instance == null) {
 				allowInstantiation = true;
-				if (options) {
-					instance = new SoundManager(options);
-				} else {
-					instance = new SoundManager();
-				}
+				instance = new SoundManager();
 				allowInstantiation = false;
 			}
+			
 			return instance;
 		}
 		// end singleton crap
@@ -77,6 +110,7 @@ package com.primalscreen.utils.soundmanager {
 		// state, objects, stuff
 		private var SoundLoader: BulkLoader;
 		private var queue:Array = new Array();
+		private var preloadQueue:Array = new Array();
 		private var loadingQueue:Array = new Array();
 		private var soundChannels:Object = new Object();
 		private var soundIDCounter = 0;
@@ -84,26 +118,33 @@ package com.primalscreen.utils.soundmanager {
 		private var timeouts:Object = new Object();
 		private var mutedChannels:Array = new Array();
 		private var defaultVolume:Number = 1;
+		private var failedURLs:Array = new Array();
 		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		// ================ Instanciation =====================
 		
 		public function SoundManager(options:Object = null):void {
-			if (options) {
-				if (options.hasOwnProperty("queueInterval")) 			{queueInterval = options.queueInterval;};
-				if (options.hasOwnProperty("trace")) 					{traceprepend = options.trace;};
-				if (options.hasOwnProperty("verbose")) 					{verbosemode = options.verbose;};
-				if (options.hasOwnProperty("samePriorityInterrupts")) 	{samePriorityInterrupts = options.samePriorityInterrupts;};
-			};
-		
+					
 			if (!allowInstantiation) {
 				throw new Error("Error: Instantiation failed: Use SoundManager.getInstance() instead of new.");
 			}
 			
-			if (verbosemode) {
-				trace("SoundManager "+version+" Instanciated in vebose/debug mode");
-			} else {
-				trace("SoundManager "+version+" Instanciated");
-			}
-			
+			trace("SoundManager "+version+" Instanciated");
+						
+			//this.SoundLoader = new BulkLoader("SoundLoader", 5, BulkLoader.LOG_SILENT);
 			this.SoundLoader = new BulkLoader("SoundLoader");
 						
 			setInterval(checkQueue,queueInterval);
@@ -111,8 +152,28 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		// ================ Small, global config functions =====================
+		
+		
+		
+		
 		public function setPath(r) {
 			root = r;
+			if (verbosemode) {trace(traceprepend+"Root path for ALL sounds set to: " + r);};
 		}
 		
 		public function setVolume(v) {
@@ -142,28 +203,58 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		// ================ playSound(), the big guy =====================
+		
+		
 		public function playSound(sound, parent = null, options:Object = null) {
+			
+			if (sound is String) {
+				if (failedURLs.indexOf(sound) != -1) {
+					if (verbosemode >= 10) {trace(traceprepend+"The sound '" + sound + "' has already been requested, and failed to load, so SoundManager will ignore it.");};
+					return false;
+				}
+			} else if (sound is Array) {
+				for (var filename in sound) {
+					if (failedURLs.indexOf(filename) != -1) {
+						if (verbosemode >= 10) {trace(traceprepend+"The sound '" + filename + "' has already been requested, and failed to load, so SoundManager will ignore it.");};
+						return false;
+					}
+				}
+			}
 			
 			var parentName = "";
 			if (parent) {
 				parentName = parent.toString();
 				parent = null;
 			} else {
-				trace(traceprepend+"Error: You didn't specify a caller in the second argument for the sound: "+sound+". I'm playing it anyway, but you really should put a reference to the caller, 'this' in there or you won't be able to use some of SoundManager's functions.");
+				if (verbosemode >= 15) {trace(traceprepend+"Error: You didn't specify a caller in the second argument for the sound: "+sound+". I'm playing it anyway, but you really should put a reference to the caller, 'this' in there or you won't be able to use some of SoundManager's functions.");};
 			}
 						
 			var newSound:Object 	= new Object();
 			newSound.id				= soundIDCounter;
 			newSound.source 		= sound;
-			if (options && options.hasOwnProperty("channel")) {
+			if (options && options.hasOwnProperty("channel") && options.channel != "") {
 				newSound.soundchannel = options.channel;
 			} else {
 				newSound.soundchannel = "soundchannel" + soundIDCounter;
 			}
-			if (options && options.hasOwnProperty("priority")) {newSound.priority = options.priority;} else {newSound.priority = 0;};
-			if (options && options.hasOwnProperty("volume")) 	{newSound.volume = options.volume;} else {newSound.volume = defaultVolume;};
-			if (options && options.hasOwnProperty("loop")) 	{newSound.loop = options.loop;} else {newSound.loop = 1;};
-			if (options && options.hasOwnProperty("event")) 	{newSound.event = options.event;};// else {newSound.event = "SOUND_FINISHED";};
+			if (options && options.hasOwnProperty("priority")) 			{newSound.priority = options.priority;} else {newSound.priority = 0;};
+			if (options && options.hasOwnProperty("volume")) 			{newSound.volume = options.volume;} else {newSound.volume = defaultVolume;};
+			if (options && options.hasOwnProperty("loop")) 				{newSound.loop = options.loop;} else {newSound.loop = 1;};
+			if (options && options.hasOwnProperty("event")) 			{newSound.event = options.event;};
+			if (options && options.hasOwnProperty("eventOnInterrupt")) 	{newSound.eventOnInterrupt = options.eventOnInterrupt;};
+			if (options && options.hasOwnProperty("eventOnLoadFail")) 	{newSound.eventOnLoadFail = options.eventOnLoadFail;};
 			newSound.parentname = parentName;
 			newSound.played = false;
 			newSound.paused = false;
@@ -180,7 +271,7 @@ package com.primalscreen.utils.soundmanager {
 			
 			
 			if (mutedChannels.indexOf(newSound.soundchannel) > -1) {
-				if (verbosemode) {trace(traceprepend+"Channel "+newSound.soundchannel+" is muted, cancelling sound.");};
+				if (verbosemode >= 10) {trace(traceprepend+"Channel "+newSound.soundchannel+" is muted, cancelling sound.");};
 				return false;
 			}
 			
@@ -189,21 +280,24 @@ package com.primalscreen.utils.soundmanager {
 			for (var x in queue) { // look through the queue
 				if (queue[x].soundchannel == newSound.soundchannel) { // if anything in the queue is on the same channel
 					if (queue[x].priority == newSound.priority && !samePriorityInterrupts) {// compare it's priority
-						if (verbosemode) {trace(traceprepend+"Same priority sound already playing, and 'samePriorityInterrupts' is set to false, so ignoring: "+queue[x].source);};
+						if (verbosemode >= 10) {trace(traceprepend+"Same priority sound already playing, and 'samePriorityInterrupts' is set to false, so ignoring: "+queue[x].source);};
 						return false;
 					} if (queue[x].priority > newSound.priority) {
-						if (verbosemode) {trace(traceprepend+"Higher priority sound already playing, ignoring: "+queue[x].source);};
+						if (verbosemode >= 10) {trace(traceprepend+"Higher priority sound already playing, ignoring: "+queue[x].source);};
 						return false;
 					} else {
 						obliterate(queue[x]);
 					}
 				}
+				
 			}
 			
 			
 			// no reason not to play sound, so play it
-			if (verbosemode) {trace(traceprepend+"Sound '"+newSound.source+"' added to queue on channel '"+newSound.soundchannel+"'")};
-			if (!options) {if (verbosemode) {trace(traceprepend+"You didn't want any options on '"+newSound.source+"'? That's weird. Options are so good. I don't understand why someone wouldn't want any. Do you have something against options?");};};
+			if (verbosemode) {trace(traceprepend+"Sound '"+newSound.source+"' added to queue on channel '"+newSound.soundchannel+"'");};
+			if (!options && verbosemode >= 15) {
+				trace(traceprepend+"You didn't want any options on '"+newSound.source+"'? That's weird. Options are so good. I don't understand why someone wouldn't want any. Do you have something against options? Are you too good for options? Whatever dude.");
+			};
 			queue.push(newSound);
 			checkQueue();
 			return newSound.id;
@@ -221,6 +315,12 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
+		
+		
+		
+		
+		
+		// ================ Managing the sound queue =====================
 		
 		private function checkQueue(e = null) {
 			if (queue && queue.length > 0) {runQueue();};
@@ -261,13 +361,13 @@ package com.primalscreen.utils.soundmanager {
 								volume = queue[key].volume;
 								
 								if (queue[key].pausePoint) {
-									if (verbosemode) {trace(traceprepend+"Sound was previously paused at "+ queue[key].pausePoint + " seconds.");};
+									if (verbosemode >= 15) {trace(traceprepend+"Sound was previously paused at "+ queue[key].pausePoint + " seconds.");};
 								}
 								
 								// sound playing bit
 								soundChannels[soundChannel] = new SoundChannel();
 								
-								if (verbosemode) {trace(traceprepend+"Playing '"+root + queue[key].source+"'");};
+								if (verbosemode >= 10) {trace(traceprepend+"Playing '"+root + queue[key].source+"'");};
 								s = SoundLoader.getContent(source);
 								soundChannels[soundChannel] = s.play(queue[key].pausePoint);
 								soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler, false, 0, true);
@@ -281,11 +381,11 @@ package com.primalscreen.utils.soundmanager {
 								
 							} else {
 								// it's not yet loaded, load it
-								if (verbosemode) {trace(traceprepend+"File '" + root + queue[key].source + "' not loaded yet... loading...");};
+								if (verbosemode >= 10) {trace(traceprepend+"File '" + root + queue[key].source + "' not loaded yet... loading...");};
 								queue[key].ready = false;
 								SoundLoader.add(root + queue[key].source, {type:"sound"});
 								SoundLoader.addEventListener(BulkLoader.COMPLETE, somethingLoaded, false, 0, true);
-								SoundLoader.addEventListener(BulkLoader.ERROR, loadError);
+								SoundLoader.get(root + queue[key].source).addEventListener(BulkLoader.ERROR, loadError);
 								SoundLoader.start();
 								
 								var newLoadingSound = new Object();
@@ -359,7 +459,7 @@ package com.primalscreen.utils.soundmanager {
 						};
 					};
 				} else {
-					if (verbosemode) {trace(traceprepend+"Something went wrong, this is a failsafe.");};
+					if (verbosemode >= 15) {trace(traceprepend+"Something went wrong, this is a failsafe.");};
 				}
 			};
 		}
@@ -367,7 +467,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		private function somethingLoaded(e) {
-			if (verbosemode) {trace(traceprepend+"A load was successful, adding back to play queue.");};
+			if (verbosemode >= 15) {trace(traceprepend+"A load was successful, adding back to play queue.");};
 			
 			for (var x in loadingQueue) {
 				var loaded = false;
@@ -400,8 +500,24 @@ package com.primalscreen.utils.soundmanager {
 			return false;
 		}
 		
-		private function loadError(e) {
-			trace(traceprepend+"A load failed, you're probably missing a file.");
+		private function loadError(e:ErrorEvent) {
+			if (e.target.hasOwnProperty("url") && e.target.url.hasOwnProperty("url")) {
+				// this is a little messy huh? basically we're catching the load error event, 
+				// thrown by BulkLoader, and then going into it's URLRequest object, which they call "url"
+				// and getting the "url" property of it.
+				if (verbosemode) {trace(traceprepend+"Loading of file '" + e.target.url.url + "' failed, you probably mistyped. SoundManager will ignore it from now on, unless it has eventOnLoadFail set true, where it will throw the event, then ignore it.");};
+				failedURLs.push(e.target.url.url);
+				
+				/*
+				if (e.target.hasOwnProperty("event") && e.target.hasOwnProperty("eventOnLoadFail") && e.target.eventOnLoadFail) {
+					// theres an event set, and eventOnLoadFail is true, so we have to throw the event anyway
+					if (verbosemode) {trace(traceprepend+"Dispatching event: '" + s.event + "'");};
+					dispatchEvent(new Event(s.event, true));
+				}
+				*/
+			} else {
+				if (verbosemode) {trace(traceprepend+"A file failed to load, but SoundManager couldn't catch it's URL for some reason.");};
+			};
 		}
 		
 		
@@ -431,7 +547,7 @@ package com.primalscreen.utils.soundmanager {
 				}
 			}
 			
-			if (verbosemode) {trace(traceprepend+"Sound finished: " + s.id);};
+			if (verbosemode >= 10) {trace(traceprepend+"Sound finished: " + s.id);};
 			
 			// dispatch the end event, if requested
 			if (s.event != null && s.event is String) {
@@ -495,7 +611,7 @@ package com.primalscreen.utils.soundmanager {
 					}
 				}
 				
-				if (verbosemode) {trace(traceprepend+"Sound finished: " + soundID);};
+				if (verbosemode >= 10) {trace(traceprepend+"Sound finished: " + soundID);};
 				
 				
 				for (var y in queue) {
@@ -541,7 +657,11 @@ package com.primalscreen.utils.soundmanager {
 			
 				for (var x in queue) {
 					if (queue[x].id == sound) {
-						if (verbosemode) {trace(traceprepend+"Obliterating Sound: "+queue[x].source);};
+						if (verbosemode >= 15) {trace(traceprepend+"Obliterating Sound: "+queue[x].source);};
+						if (queue[x].event && queue[x].event is String && queue[x].eventOnInterrupt) {
+							if (verbosemode >= 10) {trace(traceprepend+"Sound with event interrupted: '" + queue[x].event + "'- dispatching");};
+							dispatchEvent(new Event(queue[x].event, true));
+						}
 						if (soundChannels.hasOwnProperty(queue[x].soundchannel)) {
 							soundChannels[queue[x].soundchannel].stop();
 							delete(soundChannels[queue[x].soundchannel]);
@@ -554,7 +674,11 @@ package com.primalscreen.utils.soundmanager {
 				
 				for (var y in queue) {
 					if (queue[y] === sound) {
-						if (verbosemode) {trace(traceprepend+"Obliterating Sound: "+queue[y].source);};
+						if (verbosemode >= 15) {trace(traceprepend+"Obliterating Sound: "+queue[y].source);};
+						if (queue[y].event && queue[y].event is String && queue[y].eventOnInterrupt) {
+							if (verbosemode >= 10) {trace(traceprepend+"Sound with event interrupted: '" + queue[y].event + "'- dispatching");};
+							dispatchEvent(new Event(queue[y].event, true));
+						}
 						if (soundChannels.hasOwnProperty(queue[y].soundchannel)) {
 							soundChannels[queue[y].soundchannel].stop();
 							delete(soundChannels[queue[y].soundchannel]);
@@ -568,7 +692,21 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		// ====================== SOUND CONTROL FUNCTIONS ====================
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		// ================ Sound Control Functions =====================
 		
 		public function resumeSound(id) {
 			// note that this function doesn't actually resume a sound, it just switches it back to "unplayed"
@@ -668,7 +806,7 @@ package com.primalscreen.utils.soundmanager {
 			if (verbosemode) {trace(traceprepend+"Resuming sounds originally called by "+parent);};
 			
 			for (var x in queue) {
-				if (queue[x].parentname == resuming) {
+				if (queue[x].parentname == parent) {
 					resumeSound(queue[x].id);
 				}
 			}
@@ -679,7 +817,7 @@ package com.primalscreen.utils.soundmanager {
 			if (verbosemode) {trace(traceprepend+"Pausing sounds originally called by "+parent);};
 			
 			for (var x in queue) {
-				if (queue[x].parentname == stopping) {
+				if (queue[x].parentname == parent) {
 					pauseSound(queue[x].id);
 				}
 			}
@@ -698,11 +836,7 @@ package com.primalscreen.utils.soundmanager {
 			
 		}
 		
-		
-		
-		
-		
-		
+			
 		
 		public function muteChannel(channel = null) {
 			
@@ -717,9 +851,6 @@ package com.primalscreen.utils.soundmanager {
 				if (verbosemode) {trace(traceprepend+"Error: Used muteChannel without naming a channel to mute.");};
 			}
 		}
-		
-		
-		
 		
 		
 		public function unmuteChannel(channel = null) {
@@ -737,12 +868,6 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		
-		
-		
-		
-		
-		
-		var preloadQueue:Array = new Array();
 		
 		public function preload(source, event = null) {
 			
