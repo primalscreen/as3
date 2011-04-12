@@ -24,12 +24,12 @@
 		}
 		h2 {
 			font-size: 15pt;
-			padding-top: 40px;
+			padding-top: 50px;
 			color: #205F87;
 		}
 		h3 {
 			font-size: 12pt;
-			padding-top: 20px;
+			padding-top: 40px;
 			color: #205F87;
 		}
 
@@ -70,7 +70,7 @@
 
 
 <div id="container">
-<h1>Primal Screen Sound Manager b0.7 Documentation</h1>
+<h1>Primal Screen Sound Manager b0.92 Documentation</h1>
 
 
 <div class="important">
@@ -110,7 +110,7 @@ files in your classpath. Keep the <span class="fakepre">com.primalscreen</span>.
 import com.primalscreen.soundmanager.utils.SoundManager;
 
 // in the class
-var soundManager;
+var soundManager:com.primalscreen.utils.SoundManager;
 
 // in your constructor
 soundManager = SoundManager.getInstance();
@@ -159,8 +159,7 @@ soundManager = SoundManager.getInstance({verbose: true, trace:"SoundManager says
 
 <ul>
 	<li><strong>Source</strong> <em>(String/Array):</em> the filename, or array of filenames you want to load 
-	and play. Within the array should only be strings and numbers, numbers will interpretted as gaps between 
-	the sounds, in milliseconds.</li>
+	and play. You can also put numbers in the array, and the numbers will interpretted as gaps between the sounds, in milliseconds.</li>
 	<li><strong>Caller</strong> <em>(Object):</em> Usually <span class="fakepre">this</span>, this reference is used later when you're garbage collecting.
 	It's a reference to the class that called the <span class="fakepre">playSound()</span>, so that if you ever want to destroy the app/game/class later, and you want to kill
 	all sounds associated with it, you can use the <span class="fakepre">stopSoundsFrom(this)</span> function, to stop all sounds that were set up by <span class="fakepre">this</span> class.</li>
@@ -173,13 +172,17 @@ soundManager = SoundManager.getInstance({verbose: true, trace:"SoundManager says
 <ul>
 	<li><strong>event</strong> <em>(String):</em> The event you want the SoundManager to dispatch when this 
 	sound finishes.</li>
-	<li><strong>channel</strong> <em>(String):</em> The name of the channel you want to play the sound on. 
+	<li><strong>channel*</strong> <em>(String):</em> The name of the channel you want to play the sound on. *Read more about what a "channel" is, below.
 	These aren't real SoundChannels, think of it like if there's a sound playing on channel A, and you play 
 	another one on that same channel, it will stop the first sound and play the second. </li>
 	<li><strong>priority</strong> <em>(Number):</em> Sets the priority level of the sound. If another sound exists on the same channel,
 	the one with the higher priority will play, cutting off the existing sound if necessary.</li>
+	<li><strong>eventOnInterrupt</strong> <em>(Boolean):</em> Decides whether the event will fire when a sound is interrupted. Good backup plan for when you're relying on that event to move the application forward, but it's possible to interrupt the sound. Default: false</li>
+	<li><strong>dontInterruptSelf</strong> <em>(Boolean):</em> If set to true, when the same sound is requested on the same channel, it will be ignored. Default: false.</li>
 	<li><strong>volume</strong> <em>(Number):</em> 0 is muted, 1 is normal volume. Defaults to 1, unless you've already used setVolume();</li>
 	<li><strong>loop</strong> <em>(Number):</em> Number of times to loop the sound. 0 is infinite, 1 is default.</li>
+	<li><strong>pauseOnTime</strong> <em>(Number):</em> Number of milliseconds to hold the sound out of the queue. It's called "pauseOnTime" because this is used when you want an audio cue to play if a user hovers their mouse over a button.</li>
+	<li><strong>pauseOnName</strong> <em>(String):</em> An optional name you can give a pause-on, so you can cancel it later.</li>
 </ul>
 <p>So a much more complicated example might be:</p>
 <pre>
@@ -193,6 +196,28 @@ soundManager.playSound("assets/testaudio.mp3", this, {
 </pre>
 <p>Which would make the file, <em>testaudio.mp3</em>, load, then play twice at half volume on a channel called "sound_effects_channel", interrupting anything else on that channel with a priority lower than 4. 
 
+
+
+
+<h3>"Channels" in the SoundManager sense</h3>
+<p>
+	A channel, when it comes to SoundManager, has been a little confusing to some, so here's a brief explanation. <b>A channel can only have one sound 
+	playing on it at a time.</b> No matter what. Period. If you're playing a sound on a channel, let's call them sound ALPHA and channel GAMMA, and then 
+	try to play another sound, sound BETA on channel GAMMA, one of two things has to happen:
+</p>
+<ul>
+	<li>
+		<strong>Sound ALPHA continues to play, sound BETA is ignored.</strong> This happens if ALPHA had a higher priority than BETA, or if any of a couple of the less used "tweak"
+		options are used.
+	</li>
+	<li>
+		<strong>Sound ALPHA is stopped and sound BETA plays instead.</strong> This happens if BETA has an equal or higher priority.
+	</li>
+</ul>
+<p>
+	The exceptions to these rules come into play when you've set <span class="fakepre">samePriorityInterrupts</span> (in <span class="fakepre">getInstance()</span>) to <span class="fakepre">false</span>, or when it's the exact same sound file, and 
+	<span class="fakepre">dontInterruptSelf</span> (in <span class="fakepre">playSound()</span>) is set to <span class="fakepre">true</span>. 
+</p>
 
 
 
@@ -217,7 +242,12 @@ playSound(seq);
 <pre>
 playSound(["filename1.mp3", 500, "filename2.mp3", 500, "filename3.mp3"]);
 </pre>
-<p>The above example will play the three files in order, but will pause for half a second (500 milliseconds) between them.
+<p>The above example will play the three files in order, but will pause for half a second (500 milliseconds) between them.</p>
+<p><b>NOTE</b> that the use of a number for the first item in a sound sequence array is discouraged. We were using this for pause-ons (when a user hovers their mouse over
+a button for a while) to define the delay before the pause-on sound played. The problem was that when a sound was already playing on a channel, and you added a sound with
+a 5 second "pause-on" gap at the start, it cancelled the old sound long before the new sound would play. It got even more messy if you just brushed over a button and it
+cancelled the old sound in order to set up the new pause-on, and that new pause-on was never needed. Instead use <span class="fakepre">pauseOnTime</span>, which holds 
+the sound out of the queue for the given period.</p>
 
 
 
@@ -296,6 +326,18 @@ var mySound = playSound("filename.mp3");
 	<li>
 		<span class="fakepre">resumeSoundsFrom(this);</span><br>
 		Resumes all paused sounds from the same caller.
+	</li>
+	<li>
+		<span class="fakepre">cancelPauseOn("pause_on_name");</span><br>
+		Cancels pause-ons that were set up with this name.
+	</li>
+	<li>
+		<span class="fakepre">cancelPauseOnsFrom(this);</span><br>
+		Cancels pause-ons that were set up by the same calling class/object/movieclip.
+	</li>
+	<li>
+		<span class="fakepre">cancelAllPauseOns();</span><br>
+		Cancels all pause-ons. 
 	</li>
 	<li>
 		<span class="fakepre">muteChannel("channel_name");</span><br>
