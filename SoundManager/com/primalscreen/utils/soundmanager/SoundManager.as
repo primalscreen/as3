@@ -43,7 +43,7 @@ package com.primalscreen.utils.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version:String = "beta 0.99";
+		private const version:String = "beta 0.100";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -606,7 +606,7 @@ package com.primalscreen.utils.soundmanager {
 						
 						// set the played value if we were able to play it
 						if (played) {
-							queue[key].played = true;
+							queueItem.played = true;
 						};
 					};
 				} else {
