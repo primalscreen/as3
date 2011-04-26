@@ -43,7 +43,7 @@ package com.primalscreen.utils.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version:String = "beta 0.100";
+		private const version:String = "beta 0.104";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -94,6 +94,8 @@ package com.primalscreen.utils.soundmanager {
 			}
 			if (instance == null) {
 				instance = new SoundManager(new SingletonBlocker());
+			} else {
+				trace("Returning pre-existing instance of SoundManager");
 			}
 			return instance;
 		}
@@ -483,125 +485,121 @@ package com.primalscreen.utils.soundmanager {
 				
 				var queueItem:Object = queue[key];
 				
-							// failsafes
-							if (queueItem.hasOwnProperty("id")) {
+				// failsafes
+				if (queueItem && queueItem.hasOwnProperty("id")) {
+					
+					if (!queueItem.played && queueItem.ready) {
+															
+						if (queueItem.source is String) {
+						// START OF PLAYING A SINGLE SOUND
+							if (isSoundLoaded(queueItem.source)) {
+								// it's loaded, play it
+								cancelOtherSounds(queueItem);
+								source = root + queueItem.source;
+								soundChannel = queueItem.soundchannel;
+								volume = queueItem.volume;
+								if (queueItem.pausePoint) {
+									if (verbosemode >= 15) {trace(traceprepend+"Sound was previously paused at "+ queueItem.pausePoint + " seconds.");};
+								}
 								
-								if (!queueItem.played && queueItem.ready) {
-																		
-									if (queueItem.source is String) {
-										
-				// START OF PLAYING A SINGLE SOUND
-										if (isSoundLoaded(queueItem.source)) {
-											// it's loaded, play it
-											cancelOtherSounds(queueItem);
-											source = root + queueItem.source;
-											soundChannel = queueItem.soundchannel;
-											volume = queueItem.volume;
-											if (queueItem.pausePoint) {
-												if (verbosemode >= 15) {trace(traceprepend+"Sound was previously paused at "+ queueItem.pausePoint + " seconds.");};
-											}
-											
-											// sound playing bit
-											soundChannels[soundChannel] = new SoundChannel();
-											
-											if (verbosemode >= 10) {trace(traceprepend+"Playing '"+root + queueItem.source+"'");};
-											s = SoundLoader.getContent(source);
-											soundChannels[soundChannel] = s.play(queueItem.pausePoint);
-											soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler, false, 0, true);
-											
-											v = new SoundTransform(volume);
-											soundChannels[soundChannel].soundTransform = v;
-											
-											played = true;
-											queueItem.played = true;
-											// end sound playing bit
-											
-											
-										} else {
-											// it's not yet loaded, load it
-											if (verbosemode >= 10) {trace(traceprepend+"File '" + root + queueItem.source + "' not loaded yet... loading...");};
-											queueItem.ready = false;
-											SoundLoader.add(root + queueItem.source, {type:"sound"});
-											SoundLoader.addEventListener(BulkLoader.COMPLETE, somethingLoaded, false, 0, true);
-											SoundLoader.addEventListener(BulkLoader.ERROR, loadError, false, 0, true);
-											//SoundLoader.get(root + queueItem.source);
-											SoundLoader.start();
-											
-											var newLoadingSound:Object = new Object();
-											newLoadingSound.id = queueItem.id;
-											newLoadingSound.source = queueItem.source;
-											loadingQueue.push(newLoadingSound);
-											
-										}
-				// END OF PLAYING A SINGLE SOUND
-										
+								// sound playing bit
+								soundChannels[soundChannel] = new SoundChannel();
+								
+								if (verbosemode >= 10) {trace(traceprepend+"Playing '"+root + queueItem.source+"'");};
+								s = SoundLoader.getContent(source);
+								soundChannels[soundChannel] = s.play(queueItem.pausePoint);
+								soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler, false, 0, true);
+								
+								v = new SoundTransform(volume);
+								soundChannels[soundChannel].soundTransform = v;
+								
+								played = true;
+								queueItem.played = true;
+								// end sound playing bit
+								
+								
+							} else {
+								// it's not yet loaded, load it
+								if (verbosemode >= 10) {trace(traceprepend+"File '" + root + queueItem.source + "' not loaded yet... loading...");};
+								queueItem.ready = false;
+								SoundLoader.add(root + queueItem.source, {type:"sound"});
+								SoundLoader.addEventListener(BulkLoader.COMPLETE, somethingLoaded, false, 0, true);
+								SoundLoader.addEventListener(BulkLoader.ERROR, loadError, false, 0, true);
+								//SoundLoader.get(root + queueItem.source);
+								SoundLoader.start();
+								
+								var newLoadingSound:Object = new Object();
+								newLoadingSound.id = queueItem.id;
+								newLoadingSound.source = queueItem.source;
+								loadingQueue.push(newLoadingSound);
+								
+							}
+						// END OF PLAYING A SINGLE SOUND
+						} else {
+						// START OF PLAYING A SOUND SEQUENCE
+							if (queueItem.source[0] is Number) {
+								// delay
+								played = true;
+								if (timeouts[queueItem.soundchannel]) {
+									clearTimeout(timeouts[queueItem.soundchannel]);
+								}
+								timeouts[queueItem.soundchannel] = setTimeout(delayComplete, queueItem.source[0], queueItem);
+								
+								
+							} else {
+								// sound
+								if (isSeqLoaded(queueItem.source)) {
+									// it's loaded, play it
+									
+									cancelOtherSounds(queueItem);
+									
+									source = root + queueItem.source[0];
+									soundChannel = queueItem.soundchannel;
+									volume = queueItem.volume;
+									if (queueItem.pausePoint) {
+										if (verbosemode >= 15) {trace(traceprepend+"Sound was previously paused at "+ queueItem.pausePoint + " seconds.");};
 									} else {
-				// START OF PLAYING A SOUND SEQUENCE
-										
-										if (queueItem.source[0] is Number) {
-											// delay
-											played = true;
-											if (timeouts[queueItem.soundchannel]) {
-												clearTimeout(timeouts[queueItem.soundchannel]);
-											}
-											timeouts[queueItem.soundchannel] = setTimeout(delayComplete, queueItem.source[0], queueItem);
-											
-											
-										} else {
-											// sound
-											if (isSeqLoaded(queueItem.source)) {
-												// it's loaded, play it
-												
-												cancelOtherSounds(queueItem);
-												
-												source = root + queueItem.source[0];
-												soundChannel = queueItem.soundchannel;
-												volume = queueItem.volume;
-												if (queueItem.pausePoint) {
-													if (verbosemode >= 15) {trace(traceprepend+"Sound was previously paused at "+ queueItem.pausePoint + " seconds.");};
-												} else {
-													queueItem.pausePoint = 0;
-												}
-												
-												// sound playing bit
-												soundChannels[soundChannel] = new SoundChannel();
-												
-												s = SoundLoader.getContent(source);
-												trace("queueItem.pausePoint: " + queueItem.pausePoint);
-												trace("soundChannels[soundChannel]: " + soundChannels[soundChannel]);
-												trace("queueItem.source[0]: " + queueItem.source[0]);
-												trace("s: " + s);
-												soundChannels[soundChannel] = s.play(queueItem.pausePoint);
-												soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundSequencePartCompleteEventHandler, false, 0, true);
-												
-												v = new SoundTransform(volume);
-												soundChannels[soundChannel].soundTransform = v;
-												
-												played = true;
-												// end sound playing bit
-												
-												
-											} else {
-												// it's not yet loaded, load it
-												queueItem.ready = false;
-												for (var w:String in queueItem.source){
-													if (queueItem.source[w] is String) {
-														SoundLoader.add(root + queueItem.source[w], {type:"sound"});
-													}
-												};
-												
-												SoundLoader.addEventListener(BulkLoader.COMPLETE, somethingLoaded, false, 0, true);
-												SoundLoader.addEventListener(BulkLoader.ERROR, loadError);
-												SoundLoader.start();
-												
-												var newLoadingSoundSeq:Object = new Object();
-												newLoadingSoundSeq.id = queueItem.id;
-												newLoadingSoundSeq.source = queueItem.source;
-												loadingQueue.push(newLoadingSoundSeq);
-											}
+										queueItem.pausePoint = 0;
+									}
+									
+									// sound playing bit
+									soundChannels[soundChannel] = new SoundChannel();
+									
+									s = SoundLoader.getContent(source);
+									trace("queueItem.pausePoint: " + queueItem.pausePoint);
+									trace("soundChannels[soundChannel]: " + soundChannels[soundChannel]);
+									trace("queueItem.source[0]: " + queueItem.source[0]);
+									trace("s: " + s);
+									soundChannels[soundChannel] = s.play(queueItem.pausePoint);
+									soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundSequencePartCompleteEventHandler, false, 0, true);
+									
+									v = new SoundTransform(volume);
+									soundChannels[soundChannel].soundTransform = v;
+									
+									played = true;
+									// end sound playing bit
+									
+									
+								} else {
+									// it's not yet loaded, load it
+									queueItem.ready = false;
+									for (var w:String in queueItem.source){
+										if (queueItem.source[w] is String) {
+											SoundLoader.add(root + queueItem.source[w], {type:"sound"});
 										}
-	
-	// END OF PLAYING A SOUND SEQUENCE
+									};
+									
+									SoundLoader.addEventListener(BulkLoader.COMPLETE, somethingLoaded, false, 0, true);
+									SoundLoader.addEventListener(BulkLoader.ERROR, loadError);
+									SoundLoader.start();
+									
+									var newLoadingSoundSeq:Object = new Object();
+									newLoadingSoundSeq.id = queueItem.id;
+									newLoadingSoundSeq.source = queueItem.source;
+									loadingQueue.push(newLoadingSoundSeq);
+								}
+							}
+						// END OF PLAYING A SOUND SEQUENCE
 						}
 						
 						// set the played value if we were able to play it
@@ -737,7 +735,7 @@ package com.primalscreen.utils.soundmanager {
 			
 			// dispatch the end event, if requested
 			if (s && s.event != null && s.event is String) {
-				if (verbosemode) {trace(traceprepend+"Dispatching event: '" + s.event + "'");};
+				if (verbosemode >= 10) {trace(traceprepend+"Dispatching event: '" + s.event + "'");};
 				dispatchEvent(new Event(s.event, true));
 			}
 			
@@ -748,6 +746,7 @@ package com.primalscreen.utils.soundmanager {
 			if (s && s.loop > 1 || s.loop == 0) {
 				//trace("sound with loop finished");
 				s.played = false;
+				s.pausePoint = 0;
 				if (s && s.loop > 1) {s.loop--;};
 				checkQueue();
 			} else if (s) {
@@ -799,7 +798,7 @@ package com.primalscreen.utils.soundmanager {
 					}
 				}
 				
-				if (verbosemode >= 10) {trace(traceprepend+"Sound finished: " + soundID);};
+				if (verbosemode >= 15) {trace(traceprepend+"Sound finished: " + soundID);};
 				
 				
 				for (var y:String in queue) {
