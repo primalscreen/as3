@@ -43,7 +43,7 @@ package com.primalscreen.utils.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version:String = "beta 0.104";
+		private const version:String = "beta 0.107";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -55,6 +55,8 @@ package com.primalscreen.utils.soundmanager {
 		private static var queueInterval:Number = 100;
 		private static var traceprepend:String = "SoundManager: ";
 		private static var samePriorityInterrupts:Boolean = true;
+		
+		private static var gaplessGap:Number = 170; 
 		
 		// levels of verbosity
 		public static const SILENT:Number = 0;
@@ -110,6 +112,7 @@ package com.primalscreen.utils.soundmanager {
 		private var pauseOnQueue:Array = new Array();
 		private var preloadQueue:Array = new Array();
 		private var loadingQueue:Array = new Array();
+		private var gaplessTimers:Array = new Array();
 		private var pauseOnTimeouts:Object = new Object();
 		private var soundChannels:Object = new Object();
 		private var soundIDCounter:Number = 0;
@@ -272,7 +275,14 @@ package com.primalscreen.utils.soundmanager {
 				if (options.hasOwnProperty("eventOnInterrupt")) 	{newSound.eventOnInterrupt = options.eventOnInterrupt;};
 				if (options.hasOwnProperty("pauseOnTime")) 			{newSound.pauseOnTime = options.pauseOnTime;} else {newSound.pauseOnTime = 0;};
 				if (options.hasOwnProperty("pauseOnName")) 			{newSound.pauseOnName = options.pauseOnName;} else {newSound.pauseOnName = "defaultPauseOnName";};
-				
+				if (options.hasOwnProperty("gapless")) 				{newSound.gapless = options.gapless;} else {newSound.gapless = false;};
+				if (options.hasOwnProperty("gap")) 					{newSound.gap = options.gap;} else {newSound.gap = 0;};
+			
+				if (sound is Array && options.hasOwnProperty("gapless") && options.hasOwnProperty("loop") && options.gapless == true && options.loop != 1) {
+					if (verbosemode) {
+						trace(traceprepend+"You sent a request for playback of a sound sequence, with gapless mode turned on. This isn't possible. Ignoring gapless flag.");
+					}
+				}
 			}
 			
 			newSound.parentname = parentName;
@@ -315,23 +325,25 @@ package com.primalscreen.utils.soundmanager {
 			// look for reasons why this sound should NOT play, and kill it if we find any
 			
 			for (var x:String in queue) { // look through the queue
-				if (queue[x].soundchannel == newSound.soundchannel) { // if anything in the queue is on the same channel
-					if (queue[x].priority == newSound.priority && !samePriorityInterrupts) { // compare it's priority
+				
+				var s = queue[x];
+				if (s.soundchannel == newSound.soundchannel) { // if anything in the queue is on the same channel
+					if (s.priority == newSound.priority && !samePriorityInterrupts) { // compare it's priority
 						if (verbosemode >= 10) {trace(traceprepend+"Same priority sound already playing, and samePriorityInterrupts is set to false, so ignoring: "+newSound.source);};
 						return false;
-					} else if (queue[x].priority > newSound.priority) {
+					} else if (s.priority > newSound.priority) {
 						if (verbosemode >= 10) {trace(traceprepend+"Higher priority sound already playing, ignoring: "+newSound.source);};
 						return;
 					} else {
 						if (newSound.dontInterruptSelf) {
-							if (compareSources(queue[x].source, newSound.source)) {
+							if (compareSources(s.source, newSound.source)) {
 								if (verbosemode >= 10) {trace(traceprepend+"Same sound already playing, and dontInterruptSelf set to true, ignoring: "+newSound.source);};
 								return;
 							}
 						}
 						// if we find another sound on the same channel at the same priority, kill that one.
-						if (verbosemode >= 10) {trace(traceprepend + queue[x].source + " already playing. Cancelling it and playing: " + newSound.source);};
-						if (!newSound.pauseOnTime) obliterate(queue[x]);
+						if (verbosemode >= 10) {trace(traceprepend + s.source + " already playing. Cancelling it and playing: " + newSound.source);};
+						if (!newSound.pauseOnTime) obliterate(s);
 					}
 				}
 				
@@ -387,6 +399,10 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
+		
+		
+		
+		
 		private function compareSources(s1:*, s2:*):Boolean {
 			if (s1 is String && !(s2 is String)) { return false; };
 			if (s1 is Array && !(s2 is Array)) { return false; };
@@ -423,6 +439,10 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		
+				
+				
+				
+				
 				
 		
 		
@@ -498,8 +518,10 @@ package com.primalscreen.utils.soundmanager {
 								source = root + queueItem.source;
 								soundChannel = queueItem.soundchannel;
 								volume = queueItem.volume;
-								if (queueItem.pausePoint) {
+								if (queueItem.pausePoint && !queueItem.gapless) {
 									if (verbosemode >= 15) {trace(traceprepend+"Sound was previously paused at "+ queueItem.pausePoint + " seconds.");};
+								} else {
+									queueItem.pausePoint = 0;
 								}
 								
 								// sound playing bit
@@ -508,7 +530,11 @@ package com.primalscreen.utils.soundmanager {
 								if (verbosemode >= 10) {trace(traceprepend+"Playing '"+root + queueItem.source+"'");};
 								s = SoundLoader.getContent(source);
 								soundChannels[soundChannel] = s.play(queueItem.pausePoint);
-								soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler, false, 0, true);
+								if (queueItem.gapless && queueItem.loop != 1) {
+									setUpGapless(queueItem);
+								} else {
+									soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler, false, 0, true);
+								}
 								
 								v = new SoundTransform(volume);
 								soundChannels[soundChannel].soundTransform = v;
@@ -615,6 +641,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
+		
 		private function cancelOtherSounds(sound:Object):void {
 			
 			//trace("cancelOtherSounds()");
@@ -634,9 +661,6 @@ package com.primalscreen.utils.soundmanager {
 			}
 			
 		}
-		
-		
-		
 		
 		
 		
@@ -710,7 +734,6 @@ package com.primalscreen.utils.soundmanager {
 		
 		private function soundCompleteEventHandler(e:Event):void {
 			// destroy the sound channel
-			
 			var soundChannel:String;
 			
 			for (var x:String in soundChannels) {
@@ -719,6 +742,18 @@ package com.primalscreen.utils.soundmanager {
 				}
 			}
 			soundFinished(soundChannel);
+		}
+		
+		
+		private function gaplessSoundCompleteEventHandler(e:Event):void {
+			var soundChannel:String;
+			
+			for (var x:String in soundChannels) {
+				if (soundChannels[x] === e.currentTarget) {
+					soundChannel = x;
+				}
+			}
+			// we dont call soundFinished here, because the sound is actually still going on another channel
 		}
 		
 		
@@ -839,6 +874,50 @@ package com.primalscreen.utils.soundmanager {
 			checkQueue();
 		}
 		
+		
+		
+		
+		
+		
+		private function setUpGapless(soundItem:Object) {
+			var gap = gaplessGap;
+			if (soundItem.gap) gap = soundItem.gap;
+			
+			var soundLength = Math.floor(SoundLoader.getContent(soundItem.source).length);
+			var timerLength = soundLength - gap;
+			
+			var newTimer = setTimeout(gaplessTimeoutHandler, timerLength, soundItem.id);
+			
+			soundItem.gaplessTimer = newTimer;
+		}
+		
+		
+		private function gaplessTimeoutHandler(id):void {
+			trace("gapless soundID: " + id);
+			
+			var s:Object = null;
+			for (var x:String in queue) {
+				if (queue[x].id == id) {
+					s = queue[x];
+				}
+			}
+			
+			trace("source: " + s.source);
+			
+			// change the name of the reference to the soundchannel in the soundChannels object
+			soundChannels[s.soundchannel + "-previousLoop"] = soundChannels[s.soundchannel];
+			soundChannels[s.soundchannel] = null;
+			
+			// and add a listener to it to destroy itself when the first sound finishes
+			soundChannels[s.soundchannel + "-previousLoop"].addEventListener(Event.SOUND_COMPLETE, gaplessSoundCompleteEventHandler, false, 0, true);
+			
+			s.played = false;
+			checkQueue();
+		}
+		
+		
+		
+		
 		private function obliterate(sound:*):void {
 			// takes a sound object, or a sound ID and destroys it, whether it's playing, waiting to play, or just added to the queue
 			
@@ -930,6 +1009,10 @@ package com.primalscreen.utils.soundmanager {
 						delete(soundChannels[queue[x].soundchannel]);
 						queue[x].pausePoint = pausePoint;
 						queue[x].paused = true;
+						if (queue[x].hasOwnProperty("gaplessTimer")) {
+							//trace("gapless clear timeout");
+							clearTimeout(queue[x].gaplessTimer);
+						}
 					}
 				}
 			}
@@ -1114,7 +1197,9 @@ package com.primalscreen.utils.soundmanager {
 			checkQueue();
 		}
 		
-		
+		private function setDefaultGap(gap:Number) {
+			gaplessGap = gap;
+		}
 		
 		public function preload(source:*, event:String = null):void {
 			
