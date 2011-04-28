@@ -70,7 +70,7 @@
 
 
 <div id="container">
-<h1>Primal Screen Sound Manager b0.104 Documentation</h1>
+<h1>Primal Screen Sound Manager b0.112 Documentation</h1>
 
 
 <div class="important">
@@ -183,6 +183,8 @@ soundManager = SoundManager.getInstance({verbose: true, trace:"SoundManager says
 	<li><strong>loop</strong> <em>(Number):</em> Number of times to loop the sound. 0 is infinite, 1 is default.</li>
 	<li><strong>pauseOnTime</strong> <em>(Number):</em> Number of milliseconds to hold the sound out of the queue. It's called "pauseOnTime" because this is used when you want an audio cue to play if a user hovers their mouse over a button.</li>
 	<li><strong>pauseOnName</strong> <em>(String):</em> An optional name you can give a pause-on, so you can cancel it later.</li>
+	<li><strong>gapless</strong> <em>(Boolean):</em> If you're playing a single sound, that has to loop, you may notice that there's a tiny gap at the end of each loop. This fixes it by overlapping the sounds. Don't use it unless you need to, it's a little more overhead.</li>
+	<li><strong>gap</strong> <em>(Number):</em> The default gap when using the <span class="fakepre">gapless</span> option is 170ms, which is what works for MP3s that my MP3 converter spits out. If that's not quite right with your audio files, change it here, or change the default with the <span class="fakepre">setDefaultGap()</span> function.</li>
 </ul>
 <p>So a much more complicated example might be:</p>
 <pre>
@@ -264,6 +266,11 @@ var mySound = playSound("filename.mp3");
 		Sets the location, relative to the document root, of the files you're trying to load. Make sure you leave a 
 		<span class="fakepre">/</span> at the end. <b>Be carfeul. This applies to your whole app, because SoundManager is a singleton. So if you're
 		collaborating with others on a large app and they're using SoundManager too, don't go changing the path, because it applies to everyone.</b>
+	</li>
+	<li>
+		<span class="fakepre">setDefaultGap(100);</span><br>
+		Changes the default setting for the overlap time when using the <span class="fakepre">gapless</span> option. This may differ depending on your
+		MP3 encoder. <b>Don't forget, SoundManager is a Singleton, so this is for everything in the whole app.</b>
 	</li>
 	<li>
 		<span class="fakepre">setVolume(0.8);</span><br>
