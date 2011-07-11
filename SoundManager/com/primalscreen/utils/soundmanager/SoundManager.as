@@ -43,7 +43,7 @@ package com.primalscreen.utils.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version:String = "beta 0.112";
+		private const version:String = "beta 0.117";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -97,7 +97,7 @@ package com.primalscreen.utils.soundmanager {
 			if (instance == null) {
 				instance = new SoundManager(new SingletonBlocker());
 			} else {
-				trace("Returning pre-existing instance of SoundManager");
+				if (verbosemode >= 15) {trace(traceprepend+"Returning pre-existing instance of SoundManager");};
 			}
 			return instance;
 		}
@@ -122,6 +122,7 @@ package com.primalscreen.utils.soundmanager {
 		private var defaultVolume:Number = 1;
 		private var failedURLs:Array = new Array();
 		
+		private var stats:Object = new Object();
 		
 		
 		
@@ -202,11 +203,53 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		
+		public function showStats() {
+			if (!stats) return false;
+			trace();trace();
+			trace("===== SoundManager Stats =====");
+			for (var x:String in stats) {
+			    trace("   " + x + ":");
+			    var statGroup = stats[x];
+			    if (statGroup is Array) {
+				    statGroup.sort();
+				    removeDupes(statGroup);
+				    removeDupes(statGroup);
+				    removeDupes(statGroup);
+				    removeDupes(statGroup);
+				    for (var y:String in statGroup) {
+				    	trace("      " + statGroup[y]);
+				    }
+			    } else if (statGroup is Number) {
+			    	trace("      " + statGroup);
+			    }
+			}
+			trace();trace();
+		}
 		
+		public function addStat(arrayname:String, entry:*) {
+			if (!stats) return;
+			if (!entry) return;
+			if (!stats.hasOwnProperty(arrayname)) {
+				stats[arrayname] = new Array();
+			}
+			if (stats[arrayname] is Array) stats[arrayname].push(entry);
+		}
 		
+		public function incrementStat(arrayname:String) {
+			if (!stats) return;
+			if (!stats.hasOwnProperty(arrayname)) {
+				stats[arrayname] = 0;
+			}
+			if (stats[arrayname] is Number)	stats[arrayname]++;
+		}
 		
-		
-		
+		function removeDupes(ac:Array) : void {
+		    var i, j : int;
+		    for (i = 0; i < ac.length - 1; i++)
+		        for (j = i + 1; j < ac.length; j++)
+		            if (ac[i] === ac[j])
+		                ac.splice(j, 1);
+		}
 		
 		
 		
@@ -221,17 +264,20 @@ package com.primalscreen.utils.soundmanager {
 		
 		public function playSound(sound:*, parent:* = null, options:Object = null):* {
 			
-			
+			incrementStat("playSound calls");
+			 
 			// look to see if this sound was requested and failed to load.
 			if (sound is String) {
+				addStat("loads", sound);
 				if (failedURLs.indexOf(sound) != -1) {
 					if (verbosemode >= 10) {trace(traceprepend+"The sound '" + sound + "' has already been requested, and failed to load, so SoundManager will ignore it.");};
 					return;
 				}
 			} else if (sound is Array) {
-				for (var filename:String in sound) {
-					if (failedURLs.indexOf(filename) != -1) {
-						if (verbosemode >= 10) {trace(traceprepend+"The sound '" + filename + "' has already been requested, and failed to load, so SoundManager will ignore it.");};
+				for (var sindex:String in sound) {
+					addStat("loads", sound[sindex]);
+					if (failedURLs.indexOf(sound[sindex]) != -1) {
+						if (verbosemode >= 10) {trace(traceprepend+"The sound '" + sound[sindex] + "' has already been requested, and failed to load, so SoundManager will ignore it.");};
 						return;
 					}
 				}
@@ -271,7 +317,7 @@ package com.primalscreen.utils.soundmanager {
 				if (options.hasOwnProperty("volume")) 				{newSound.volume = options.volume;} else {newSound.volume = defaultVolume;};
 				if (options.hasOwnProperty("loop")) 				{newSound.loop = options.loop;} else {newSound.loop = 1;};
 				if (options.hasOwnProperty("dontInterruptSelf")) 	{newSound.dontInterruptSelf = options.dontInterruptSelf;} else {newSound.dontInterruptSelf = false;};
-				if (options.hasOwnProperty("event")) 				{newSound.event = options.event;};
+				if (options.hasOwnProperty("event")) 				{newSound.event = options.event; addStat("end events", options.event);};
 				if (options.hasOwnProperty("eventOnInterrupt")) 	{newSound.eventOnInterrupt = options.eventOnInterrupt;};
 				if (options.hasOwnProperty("pauseOnTime")) 			{newSound.pauseOnTime = options.pauseOnTime;} else {newSound.pauseOnTime = 0;};
 				if (options.hasOwnProperty("pauseOnName")) 			{newSound.pauseOnName = options.pauseOnName;} else {newSound.pauseOnName = "defaultPauseOnName";};
@@ -283,6 +329,8 @@ package com.primalscreen.utils.soundmanager {
 						trace(traceprepend+"You sent a request for playback of a sound sequence, with gapless mode turned on. This isn't possible. Ignoring gapless flag.");
 					}
 				}
+				
+				addStat("channels", newSound.soundchannel);
 			}
 			
 			newSound.parentname = parentName;
@@ -294,7 +342,7 @@ package com.primalscreen.utils.soundmanager {
 			soundIDCounter++;
 			
 			
-			
+			addStat("parents", newSound.parentname);
 			
 			
 			
@@ -852,7 +900,7 @@ package com.primalscreen.utils.soundmanager {
 			
 			var soundLength = Math.floor(SoundLoader.getContent(soundItem.source).length);
 			var timerLength = soundLength - gap;
-			if (verbosemode) {trace(traceprepend+"gapless timer length = " + timerLength + "ms");};
+			if (verbosemode >= 15) {trace(traceprepend+"gapless timer length = " + timerLength + "ms");};
 			
 			var newTimer = setTimeout(gaplessTimeoutHandler, timerLength, soundItem.id);
 			
@@ -861,7 +909,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		private function gaplessTimeoutHandler(id):void {
-			trace("gapless soundID: " + id);
+			//trace("gapless soundID: " + id);
 			
 			var s:Object = null;
 			for (var x:String in queue) {
