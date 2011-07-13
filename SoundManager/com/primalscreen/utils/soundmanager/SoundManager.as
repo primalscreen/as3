@@ -43,7 +43,7 @@ package com.primalscreen.utils.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version:String = "beta 0.117";
+		private const version:String = "beta 0.118";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -980,6 +980,53 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
+				
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		// ================ Lipsync Functions =====================
+		
+		public function getChannelAmplitude(channel, side = "higher") {
+			
+			if (soundChannels.hasOwnProperty(channel)) {
+				
+				var l;
+				var r;
+				
+				if (side == "left" || side == "l" || side == "L") {
+					return soundChannels[channel].leftPeak;
+				}
+				if (side == "right" || side == "r" || side == "R") {
+					return soundChannels[channel].leftPeak;
+				}
+				if (side == "average") {
+					l = soundChannels[channel].leftPeak;
+					r = soundChannels[channel].rightPeak;
+					return (l + r)/2;
+				}
+				if (side == "higher") {
+					l = soundChannels[channel].leftPeak;
+					r = soundChannels[channel].rightPeak;
+					if (l >= r) return l;
+					return r;
+				}
+			}
+			
+			return 0;
+			
+		}
+				
 				
 		
 		

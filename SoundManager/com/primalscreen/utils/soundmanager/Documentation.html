@@ -107,10 +107,10 @@ files in your classpath. Keep the <span class="fakepre">com.primalscreen</span>.
 <p>Then instantiate like this (it's a singleton, you can't just use <span class="fakepre">new SoundManager()</span>):</p>
 <pre>
 // in the package
-import com.primalscreen.soundmanager.utils.SoundManager;
+import com.primalscreen.utils.soundmanager.SoundManager;
 
 // in the class
-var soundManager:com.primalscreen.utils.SoundManager;
+var soundManager:com.primalscreen.utils.soundmanager.SoundManager;
 
 // in your constructor
 soundManager = SoundManager.getInstance();
@@ -223,7 +223,6 @@ soundManager.playSound("assets/testaudio.mp3", this, {
 
 
 
-
 <h3>Single sounds, sound sequences, and delays in playSound()'s source (first) argument</h3>
 <p>The first argument sent to <span class="fakepre">playSound()</span> is very dynamic. The simplest example you've already seen is sending it a 
 string, the filename you want to play. If you want to play a sequence of sounds, in order, one after the other,
@@ -254,11 +253,45 @@ the sound out of the queue for the given period.</p>
 
 
 
+<h3>Using the amplitude (aka volume) of a channel</h3>
+<p>
+	Here at Primal Screen when we make games for kids usually we do proper lip-syncing, but sometimes (like when we make games for Sesame Street), we use
+	a simple lip-flap based on the amplitude of the sound channel. To do that with SoundManager you'll have to ask SoundManager for the value, since
+	SoundManager abstracts sound channels out of your control. Here's an example of lip-flap, asking SoundManager to return the current volume at each frame.
+</p>
+<pre>
+soundManager.playSound("filename.mp3", this, {channel: "dave"});
+this.addEventListener(Event.ENTER_FRAME, doLipFlap, false, 0, true);
+
+function doLipFlap(e:Event) {
+	// get the current amplitude
+	var amplitude = soundManager.getChannelAmplitude("dave"); 
+	// number of frames in the mouth animation, from closed to open
+	var framesInMouth = 12; 
+	// adjust this to make the mouth open wider
+	var mouthMultiplier = 1.5; 
+	var mouthFrame = Math.round(amplitude * mouthMultiplier * framesInMouth) + 1;
+	mike.gotoAndStop(mouthFrame);
+}
+</pre> 
+<p>
+	So the function is <span class="fakepre">soundManager.getChannelAmplitude("channel_name", "behavior");</span>. The second string there
+	can be "higher", "left", "right", or "average", and it tells SoundManager whether to get the amplitude of the left or right channel of the sound,
+	the average of the two, and the higher of the two (defaults to "higher").  
+</p>
+
+<br />
+
+
+
+
+
+
 <h3>Other SoundManager functions:</h3>
 Many of these functions need an id argument to work. That's the id of the sound, and it's return as a Number by the playSound function. If you know 
 you'll need to refer back to a sound later, to stop it or change it's volume, do this:
 <pre>
-var mySound = playSound("filename.mp3");
+var mySound = soundManager.playSound("filename.mp3");
 </pre> 
 <ul>
 	<li>
