@@ -1,5 +1,4 @@
 package com.primalscreen.utils.soundmanager {
-	
 	/*
 	
 	Primal Screen Actionscript Sound Manager Class
@@ -28,49 +27,43 @@ package com.primalscreen.utils.soundmanager {
 	
 	*/
 	
-	
 	import flash.events.*;
 	import flash.media.*;
 	import flash.utils.*;
 	import flash.errors.*;
+	import flash.net.LocalConnection;
 	
-	import br.com.stimuli.loading.BulkLoader;
-	import br.com.stimuli.loading.BulkProgressEvent;
-	import br.com.stimuli.loading.loadingtypes.LoadingItem;
+	import com.primalscreen.utils.soundmanager.SMObject;
 	
-	
+	import com.greensock.*;
+	import com.greensock.events.LoaderEvent;
+	import com.greensock.loading.core.*;
+	import com.greensock.loading.LoaderMax;
+	import com.greensock.loading.MP3Loader;
 	
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version:String = "beta 0.118";
+		private const version:String = "beta 0.124";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
 		private static var allowInstantiation:Boolean;
 		
-		// options
+		// instanciation options
 		private static var verbosemode:Number = 5;
-		private 	   var root:String = "";
-		private static var queueInterval:Number = 100;
 		private static var traceprepend:String = "SoundManager: ";
-		private static var samePriorityInterrupts:Boolean = true;
-		
-		private static var gaplessGap:Number = 170; 
 		
 		// levels of verbosity
 		public static const SILENT:Number = 0;
 		public static const NORMAL:Number = 5;
 		public static const VERBOSE:Number = 10;
-		public static const ANNOYINGLY_CHATTY:Number = 15;
 		public static const ALL:Number = 15;
-		
+				
 		public static function getInstance(options:Object = null):SoundManager {
 			
 			if (options) {
-				if (options.hasOwnProperty("queueInterval")) 				{queueInterval = options.queueInterval;};
-				if (options.hasOwnProperty("trace")) 						{traceprepend = options.trace;};
-				if (options.hasOwnProperty("samePriorityInterrupts")) 		{samePriorityInterrupts = options.samePriorityInterrupts;};
+				if (options.hasOwnProperty("trace")) {traceprepend = options.trace;};
 				if (options.hasOwnProperty("verbose")) {
 					if (options.verbose is Boolean) {
 						trace("Booleans for verbose mode have been deprecated. Read the docs to see the new options.");
@@ -89,7 +82,7 @@ package com.primalscreen.utils.soundmanager {
 					} else if (verbosemode <= 10) {
 						trace(traceprepend+"Switching to verbose mode");
 					} else if (verbosemode <= 15) {
-						trace(traceprepend+"Switching to annoyingly chatty mode");
+						trace(traceprepend+"Switching to extra verbose mode");
 					}
 				};
 				
@@ -105,353 +98,733 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		
 		// state, objects, stuff
-		private var SoundLoader:BulkLoader;
-		private var queue:Array = new Array();
+		private var theQueue:Array = new Array();
+		
 		private var pauseOnQueue:Array = new Array();
-		private var preloadQueue:Array = new Array();
-		private var loadingQueue:Array = new Array();
-		private var gaplessTimers:Array = new Array();
-		private var pauseOnTimeouts:Object = new Object();
-		private var soundChannels:Object = new Object();
-		private var soundIDCounter:Number = 0;
-		private var sequences:Object = new Object();
-		private var timeouts:Object = new Object();
 		private var mutedChannels:Array = new Array();
+		
 		private var defaultVolume:Number = 1;
-		private var failedURLs:Array = new Array();
+		private var defaultGap:Number = 200;
+		private var basepath:String = "";
 		
 		private var stats:Object = new Object();
 		
 		
 		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
 		// ================ Instanciation =====================
 		
-		public function SoundManager(p_key:SingletonBlocker):void {
+		public function SoundManager(singletonBlocker:SingletonBlocker):void {
 					
-			if (p_key == null) {
+			if (singletonBlocker == null) {
 				throw new Error("Error: Instantiation failed: Use SoundManager.getInstance() instead of new SoundManager()");
 			}
 			
 			trace("SoundManager "+version+" Instanciated");
-						
-			//this.SoundLoader = new BulkLoader("SoundLoader", 5, BulkLoader.LOG_SILENT);
-			this.SoundLoader = new BulkLoader("SoundLoader");
-						
-			//setInterval(checkQueue,queueInterval);
-			setInterval(somethingLoaded, 200);
 		}
 		
 		
 		
+		// ================ Making new sounds functions =====================
 		
+		var soundIDCounter = 0;
 		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		// ================ Small, global config functions =====================
-		
-		
-		
-		
-		public function setPath(r:String):void {
-			root = r;
-			if (verbosemode) {trace(traceprepend+"Root path for ALL sounds set to: " + r);};
-		}
-		
-		public function setVolume(v:Number):void {
-			defaultVolume = v;
-		}
-		
-		public function adjustVolume(id:Number, vol:Number = 1):void {
-
-			// find the sound
-			var s:Object;
-			for (var x:String in queue) {
-				if (queue[x].id == id) {
-					s = queue[x];
-				}
-			}
+		public function playSound(source:*, parent:* = null, options:Object = null):* {
 			
-			// adjust the volume if it's currently playing
-			if (soundChannels.hasOwnProperty(s.soundChannel)) {
-				var newVol:SoundTransform = new SoundTransform(vol); 
-				soundChannels[s.soundChannel].soundTransform = newVol;
-			}
-			// and adjust the volume on the sound object itself, for future plays
-			s.volume = vol;
-		}
-		
-		
-		public function showStats() {
-			if (!stats) return false;
-			trace();trace();
-			trace("===== SoundManager Stats =====");
-			for (var x:String in stats) {
-			    trace("   " + x + ":");
-			    var statGroup = stats[x];
-			    if (statGroup is Array) {
-				    statGroup.sort();
-				    removeDupes(statGroup);
-				    removeDupes(statGroup);
-				    removeDupes(statGroup);
-				    removeDupes(statGroup);
-				    for (var y:String in statGroup) {
-				    	trace("      " + statGroup[y]);
-				    }
-			    } else if (statGroup is Number) {
-			    	trace("      " + statGroup);
-			    }
-			}
-			trace();trace();
-		}
-		
-		public function addStat(arrayname:String, entry:*) {
-			if (!stats) return;
-			if (!entry) return;
-			if (!stats.hasOwnProperty(arrayname)) {
-				stats[arrayname] = new Array();
-			}
-			if (stats[arrayname] is Array) stats[arrayname].push(entry);
-		}
-		
-		public function incrementStat(arrayname:String) {
-			if (!stats) return;
-			if (!stats.hasOwnProperty(arrayname)) {
-				stats[arrayname] = 0;
-			}
-			if (stats[arrayname] is Number)	stats[arrayname]++;
-		}
-		
-		function removeDupes(ac:Array) : void {
-		    var i, j : int;
-		    for (i = 0; i < ac.length - 1; i++)
-		        for (j = i + 1; j < ac.length; j++)
-		            if (ac[i] === ac[j])
-		                ac.splice(j, 1);
-		}
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		// ================ playSound(), the big guy =====================
-		
-		
-		public function playSound(sound:*, parent:* = null, options:Object = null):* {
+			if (verbosemode >= 5 && verbosemode < 10) {trace(traceprepend+"Playing " + source);} 
+			else if (verbosemode >= 10) {
+				trace(traceprepend+"Playing " + source);
+				if (options.hasOwnProperty("channel")) 				trace("      Channel: " + options.channel);
+				if (options.hasOwnProperty("priority")) 			trace("      Priority: " + options.priority);
+				if (options.hasOwnProperty("volume")) 				trace("      Volume: " + options.volume);
+				if (options.hasOwnProperty("loop")) 				trace("      Loop: " + options.loop);
+				if (options.hasOwnProperty("gapless")) 				trace("      Gapless: " + options.gapless);
+				if (options.hasOwnProperty("gap")) 					trace("      Gap: " + options.gap);
+				if (options.hasOwnProperty("pauseOnTime")) 			trace("      Pause On Time: " + options.pauseOnTime);
+				if (options.hasOwnProperty("pauseOnName")) 			trace("      Pause On Name: " + options.pauseOnName);
+				if (options.hasOwnProperty("onComplete")) 			trace("      onComplete: " + options.onComplete);
+				if (options.hasOwnProperty("onCompleteParams")) 	trace("      onCompleteParams: " + options.onCompleteParams);
+				if (options.hasOwnProperty("dontInterruptSelf"))	trace("      Dont Interrupt Self: " + options.dontInterruptSelf);
+			};
 			
-			incrementStat("playSound calls");
-			 
-			// look to see if this sound was requested and failed to load.
-			if (sound is String) {
-				addStat("loads", sound);
-				if (failedURLs.indexOf(sound) != -1) {
-					if (verbosemode >= 10) {trace(traceprepend+"The sound '" + sound + "' has already been requested, and failed to load, so SoundManager will ignore it.");};
-					return;
-				}
-			} else if (sound is Array) {
-				for (var sindex:String in sound) {
-					addStat("loads", sound[sindex]);
-					if (failedURLs.indexOf(sound[sindex]) != -1) {
-						if (verbosemode >= 10) {trace(traceprepend+"The sound '" + sound[sindex] + "' has already been requested, and failed to load, so SoundManager will ignore it.");};
-						return;
-					}
-				}
-			}
+			var item = new SMObject();
 			
+			item.id = soundIDCounter++;
+			item.status = SMObject.NEW;
 			
+			item.source = source;
 			
-			
-			
-			// get the "this" reference and turn it into a string, then kill the ref to free up memory
-			var parentName:String = "";
+			item.parent =  "";
 			if (parent) {
-				parentName = parent.toString();
+				item.parent = parent.toString();
 				parent = null;
 			} else {
-				if (verbosemode >= 15) {trace(traceprepend+"Error: You didn't specify a caller in the second argument for the sound: "+sound+". I'm playing it anyway, but you really should put a reference to the caller, 'this' in there or you won't be able to use some of SoundManager's functions.");};
+				if (verbosemode >= 15) {trace(traceprepend+"Error: You didn't specify a caller in the second argument for the sound: "+source+". I'm playing it anyway, but you really should put a reference to the caller, 'this' in there or you won't be able to use some of SoundManager's functions.");};
 			}
 			
-			
-			
-			
-			
-			
-			// lets get started. make the sound object and all it's options
-			
-			var newSound:Object 	= new Object();
-			newSound.id				= soundIDCounter;
-			newSound.source 		= sound;
-			
-			if (options) {
-				if (options.hasOwnProperty("channel") && options.channel != "") {
-					newSound.soundchannel = options.channel;
+			// figure out type
+			if (source is String) {
+				if (options && options.hasOwnProperty("loop") && options.loop != 1) {
+					if (options.hasOwnProperty("gapless") && options.gapless == true) {
+						item.type = SMObject.SINGLE_LOOP_GAPLESS;
+					} else {
+						item.type = SMObject.SINGLE_LOOP;
+					}
 				} else {
-					newSound.soundchannel = "soundchannel" + soundIDCounter;
+					item.type = SMObject.SINGLE;
 				}
-				if (options.hasOwnProperty("priority")) 			{newSound.priority = options.priority;} else {newSound.priority = 0;};
-				if (options.hasOwnProperty("volume")) 				{newSound.volume = options.volume;} else {newSound.volume = defaultVolume;};
-				if (options.hasOwnProperty("loop")) 				{newSound.loop = options.loop;} else {newSound.loop = 1;};
-				if (options.hasOwnProperty("dontInterruptSelf")) 	{newSound.dontInterruptSelf = options.dontInterruptSelf;} else {newSound.dontInterruptSelf = false;};
-				if (options.hasOwnProperty("event")) 				{newSound.event = options.event; addStat("end events", options.event);};
-				if (options.hasOwnProperty("eventOnInterrupt")) 	{newSound.eventOnInterrupt = options.eventOnInterrupt;};
-				if (options.hasOwnProperty("pauseOnTime")) 			{newSound.pauseOnTime = options.pauseOnTime;} else {newSound.pauseOnTime = 0;};
-				if (options.hasOwnProperty("pauseOnName")) 			{newSound.pauseOnName = options.pauseOnName;} else {newSound.pauseOnName = "defaultPauseOnName";};
-				if (options.hasOwnProperty("gapless")) 				{newSound.gapless = options.gapless;} else {newSound.gapless = false;};
-				if (options.hasOwnProperty("gap")) 					{newSound.gap = options.gap;} else {newSound.gap = 0;};
+			} else if (source is Array) {
+				if (options && options.hasOwnProperty("loop") && options.loop != 1) {
+					item.type = SMObject.SEQUENCE_LOOP;
+				} else {
+					item.type = SMObject.SEQUENCE;
+				}
+			}
 			
-				if (sound is Array && options.hasOwnProperty("gapless") && options.hasOwnProperty("loop") && options.gapless == true && options.loop != 1) {
-					if (verbosemode) {
-						trace(traceprepend+"You sent a request for playback of a sound sequence, with gapless mode turned on. This isn't possible. Ignoring gapless flag.");
+			// give defaults
+			item.priority = 1;
+			item.volume = defaultVolume;
+			item.dontInterruptSelf = false;
+			item.pauseOnTime = 0;
+			item.pauseOnName = "";
+			item.loop = 1;
+			
+			// all the properties that can go directly into the Object
+			if (options) {
+				if (options.hasOwnProperty("channel"))	 			item.channel = options.channel;
+				if (options.hasOwnProperty("onComplete")) 			item.onComplete = options.onComplete;
+				if (options.hasOwnProperty("onCompleteParams")) 	item.onCompleteParams = options.onCompleteParams;
+				if (options.hasOwnProperty("priority")) 			item.priority = options.priority;
+				if (options.hasOwnProperty("dontInterruptSelf")) 	item.dontInterruptSelf = options.dontInterruptSelf;
+				if (options.hasOwnProperty("volume")) 				item.volume = options.volume;
+				if (options.hasOwnProperty("loop")) 				item.loop = options.loop;
+				if (options.hasOwnProperty("pauseOnTime")) 			item.pauseOnTime = options.pauseOnTime;
+				if (options.hasOwnProperty("pauseOnName")) 			item.pauseOnName = options.pauseOnName;
+				if (options.hasOwnProperty("gapless")) 				item.gapless = options.gapless;
+				if (options.hasOwnProperty("gap")) 					item.gap = options.gap;
+				if (options.hasOwnProperty("event") || options.hasOwnProperty("eventOnInterrup")) {
+					trace("WARNING: the event option has been deprecated in favor of an onComplete option, which refers to an public function in the calling class.");
+				}
+			}
+			
+			theQueue.push(item);
+			checkQueue();
+			return item.id;
+			
+		}
+		
+		
+		
+		// ================ Managing the sound queue =====================
+		
+		
+		private function checkQueue(e:Event = null):void {
+			if (theQueue && theQueue.length > 0) {runQueue();};
+		}
+		
+		private function runQueue():void {
+			// the only things that should call this are a new playSound() call, and a loopback within this function itself.
+			var needToRecheckQueue = false;
+			for (var i:String in theQueue) {
+				var item = theQueue[i];
+				if (item.status == SMObject.DISPOSABLE) {
+					disposeSound(theQueue[i]);
+					needToRecheckQueue = true;
+					break;
+				} else if (item.status == SMObject.NEW) { 
+					loadItem(item);
+				} else if (item.status == SMObject.READY) {
+					playItem(item); // end of load should lead the playItem automatically now
+				} else if (item.status == SMObject.PLAYED) {
+					checkItemStatus(item);
+				}
+			}
+			if (needToRecheckQueue) checkQueue();
+		}
+		
+		
+		private function loadItem(item) {
+			if (item.type == SMObject.SINGLE || item.type == SMObject.SINGLE_LOOP || item.type == SMObject.SINGLE_LOOP_GAPLESS) {
+				item.loader = new MP3Loader(basepath + item.source, {autoPlay:false});
+				item.loadername = item.loader.name;
+				item.loader.addEventListener(LoaderEvent.COMPLETE, loadComplete, false, 0, true);
+			} else if (item.type == SMObject.SEQUENCE || item.type == SMObject.SEQUENCE_LOOP) {
+				item.loader = new LoaderMax({onComplete:loadComplete});
+				for (var i:String in item.source) {
+					if (item.source[i] is String) item.loader.append(new MP3Loader(basepath + item.source[i], {autoPlay:false}));
+				}
+				item.loadername = item.loader.name;
+			}
+			if (item.type == SMObject.SINGLE_LOOP_GAPLESS) {
+				item.altloader = new MP3Loader(basepath + item.source, {autoPlay:false});
+				item.altloadername = item.altloader.name;
+				item.altloader.load();
+			}
+			if (item.pauseOnTime) {
+				item.pauseOnTimer = setTimeout(pauseOnTimerHit, item.pauseOnTime, item);
+			}
+			item.loader.load();
+		}
+		
+		
+		
+		private function pauseOnTimerHit(item) {
+			if (item.status == SMObject.DISPOSED) return;
+			if (item.status == SMObject.PAUSEONREADY) {
+				playItem(item);
+			} else {
+				item.status = SMObject.PAUSEONREADY;
+			}
+		}
+		
+		private function loadComplete(e) {
+			for (var i:String in theQueue) {
+				if (theQueue[i].loadername == e.target.name) {
+					if (theQueue[i].pauseOnTime) {
+						if (theQueue[i].status == SMObject.PAUSEONREADY) {
+							playItem(theQueue[i]);
+						} else {
+							theQueue[i].status = SMObject.PAUSEONREADY;
+						}
+					} else if (theQueue[i].type == SMObject.SINGLE_LOOP_GAPLESS) {
+						theQueue[i].gaplessFirstPhase = true;
+						gapless(theQueue[i]);
+					} else {
+						theQueue[i].status = SMObject.READY;
+						playItem(theQueue[i]);
 					}
 				}
-				
-				addStat("channels", newSound.soundchannel);
 			}
+		}
+		
+		
+		private function gapless(item) {
 			
-			newSound.parentname = parentName;
-			newSound.played = false;
-			newSound.paused = false;
-			newSound.pausePoint = 0;
-			newSound.ready = true;
+			if (verbosemode >= 15) {trace(traceprepend+"Gapless loop back: " + item.id);};
 			
-			soundIDCounter++;
-			
-			
-			addStat("parents", newSound.parentname);
-			
-			
-			
-			
-			
-			// if it's a sequence, and this is the first we've heard of it, save a copy
-			if (sound is Array && !sequences.hasOwnProperty(newSound.id)) {
-				sequences[newSound.id] = sound.concat(); // use concat to make a dupe, not a ref
-			}
-			
-			
-			
-			// if it's going on a muted channel, kill it
-			if (mutedChannels.indexOf(newSound.soundchannel) > -1) {
-				if (verbosemode >= 10) {trace(traceprepend+"Channel "+newSound.soundchannel+" is muted, cancelling sound.");};
+			if (!shouldSoundPlay(item)) {
+				item.status = SMObject.DISPOSABLE;
+				disposeSound(item);
 				return;
 			}
 			
+			if (item.gaplessFirstPhase) {
+				item.loader.volume = item.volume;
+				item.loader.gotoSoundTime(0, true);
+			} else {
+				item.altloader.volume = item.volume;
+				item.altloader.gotoSoundTime(0, true);
+			}
+			item.gaplessFirstPhase = !item.gaplessFirstPhase;
 			
+			var gap = defaultGap;
+			if (item.hasOwnProperty("gap") && item.gap) gap = item.gap;
 			
-			
+			if (!item.gaplessTimerLength) {
+				item.gaplessTimerLength = Math.floor(item.loader.duration*1000) - gap;
+			}
+			//trace("l: "+item.gaplessTimerLength);
+			item.gaplessTimer = setTimeout(gapless, item.gaplessTimerLength, item);
+		}
 		
+		private function playItem(item) {
+			item.status = SMObject.PLAYING;
 			
+			if (!shouldSoundPlay(item)) {
+				item.status = SMObject.DISPOSABLE;
+				disposeSound(item);
+				return;
+			}
 			
+			if (item.type == SMObject.SINGLE || item.type == SMObject.SINGLE_LOOP || item.type == SMObject.SINGLE_LOOP_GAPLESS) {
+				item.loader.volume = item.volume;
+				item.loader.playSound();
+				item.loader.gotoSoundTime(0, true);
+				item.loader.removeEventListener(MP3Loader.SOUND_COMPLETE, soundComplete);
+				item.loader.addEventListener(MP3Loader.SOUND_COMPLETE, soundComplete, false, 0, true);
+			} else if (item.type == SMObject.SEQUENCE || item.type == SMObject.SEQUENCE_LOOP) {
+				if (!item.sequencePosition) item.sequencePosition = 0;
+				item.loadername = item.loader.getChildren()[item.sequencePosition].name;
+				item.loader.getChildren()[item.sequencePosition].volume = item.volume;
+				item.loader.getChildren()[item.sequencePosition].playSound();
+				item.loader.getChildren()[item.sequencePosition].gotoSoundTime(0, true);
+				item.loader.getChildren()[item.sequencePosition].removeEventListener(MP3Loader.SOUND_COMPLETE, soundComplete);
+				item.loader.getChildren()[item.sequencePosition].addEventListener(MP3Loader.SOUND_COMPLETE, soundComplete, false, 0, true);
+			}
+		}
+		
+		private function shouldSoundPlay(item) {
 			
+			// file(s) have failed to load before
 			
-			
-			// look for reasons why this sound should NOT play, and kill it if we find any
-			
-			for (var x:String in queue) { // look through the queue
-				
-				var s = queue[x];
-				if (s.soundchannel == newSound.soundchannel) { // if anything in the queue is on the same channel
-					if (s.priority == newSound.priority && !samePriorityInterrupts) { // compare it's priority
-						if (verbosemode >= 10) {trace(traceprepend+"Same priority sound already playing, and samePriorityInterrupts is set to false, so ignoring: "+newSound.source);};
-						return false;
-					} else if (s.priority > newSound.priority) {
-						if (verbosemode >= 10) {trace(traceprepend+"Higher priority sound already playing, ignoring: "+newSound.source);};
-						return;
-					} else {
-						if (newSound.dontInterruptSelf) {
-							if (compareSources(s.source, newSound.source)) {
-								if (verbosemode >= 10) {trace(traceprepend+"Same sound already playing, and dontInterruptSelf set to true, ignoring: "+newSound.source);};
-								return;
+			if (item.channel) {
+				for (var i:String in theQueue) {
+					if (item !== theQueue[i]) { // ignore self
+						if (theQueue[i].channel == item.channel) { // if theyre on the same channel
+							if (theQueue[i].priority > item.priority) { // if the existing sound's priority higher (same priority DOES interrupt)
+								if (verbosemode >= 5) {trace(traceprepend+"Sound ignored because higher priority sound is on same channel: " + theQueue[i]);};
+								return false;
+							} else if (theQueue[i].priority <= item.priority) { // if the new sound is higher (or equal) priority
+								if (item.dontInterruptSelf && compareSources(theQueue[i].source, item.source)) {
+									if (verbosemode >= 5 && verbosemode < 10) {
+										trace(traceprepend+"Sound ignored (higher priority, but dontInterruptSelf on): " + theQueue[i]);
+									} else if (verbosemode >= 10) {
+										trace(traceprepend+"Sound ignored because although it's priority is higher, the sound it would replace is the exact same sound, and the  'dontInterruptSelf' option is on: " + theQueue[i]);
+									}
+									trace("sound not played even though it's priority is higher (or the same) because it's the same sound, and dontInterruptSelf is turned on");
+									return false;
+								}
 							}
 						}
-						// if we find another sound on the same channel at the same priority, kill that one.
-						if (verbosemode >= 10) {trace(traceprepend + s.source + " already playing. Cancelling it and playing: " + newSound.source);};
-						if (!newSound.pauseOnTime) obliterate(s);
 					}
 				}
-				
-			}
-			
-			
-			
-			
-			
-			// if it's a pauseon, set up the timer and send back the ID, don't play anything or kill other sounds yet.
-			if (newSound.pauseOnTime) {
-				if (verbosemode >= 10) {trace(traceprepend+"Sound was set up with a pause on time of " + newSound.pauseOnTime + "ms. Deferring it from regular queue.");};
-				var newTimeout:uint = setTimeout(hitPauseOn, newSound.pauseOnTime, newSound);
-				pauseOnTimeouts[newTimeout] = {name: newSound.pauseOnName, parentname: newSound.parentname};
-				return newSound.id;
-			}
-			
-			
-			
-			
-			
-			
-			// no reason not to play sound, so play it
-			if (verbosemode) {trace(traceprepend+"Sound "+newSound.source+" added to queue on channel "+newSound.soundchannel);};
-			if (!options && verbosemode >= 15) {
-				trace(traceprepend+"You didnt want any options on "+newSound.source+"? Thats weird. Options are so good. I dont understand why someone wouldnt want any. Do you have something against options? Are you too good for options? Whatever dude.");
-			};
-			queue.push(newSound);
-			
-			checkQueue();
-			
-			return newSound.id;
-			
+			} 			
 						
+			//channel is muted
+			
+			// no reason not to
+			killOtherSoundsOnChannel(item);
+			return true;
 		}
 		
 		
-		private function hitPauseOn(newSound:Object) {
-			if (verbosemode >= 5) {
-				trace(traceprepend+"Hit Pause-On: " + newSound.source);
-			};
-			queue.push(newSound);
-			checkQueue();
+		private function killOtherSoundsOnChannel(item:*) {
+			if (item is SMObject) {
+				if (item.channel) {
+					for (var i:String in theQueue) {
+						if (item !== theQueue[i]) { // ignore self
+							if (theQueue[i].channel == item.channel) {
+								disposeSound(theQueue[i]);
+								delete(theQueue[i]);
+							}
+						}
+					}
+				}
+			} else if (item is String) {
+				if (item) {
+					for (var j:String in theQueue) {
+						if (theQueue[j].channel == item) {
+							disposeSound(theQueue[j]);
+							delete(theQueue[j]);
+						}
+					}
+				}
+			}
 		}
 		
+		public function soundComplete(e) {
+			for (var i:String in theQueue) {
+				if (theQueue[i].loadername == e.target.name) {
+					theQueue[i].status = SMObject.PLAYED;
+					checkItemStatus(theQueue[i]);
+				}
+			}
+		}
 		
+		public function checkItemStatus(item) {
+			var finished = false;
+			
+			if (item.type == SMObject.SINGLE || item.type == SMObject.SINGLE_LOOP) {
 				
+				if (item.type == SMObject.SINGLE || (item.loop > 1 && item.loopCounter == 1)) { // no loop, or out of loops
+					if (item.onComplete) {
+						if (item.onCompleteParams) {
+								 if (item.onCompleteParams.length == 1) item.onComplete(item.onCompleteParams[0])
+							else if (item.onCompleteParams.length == 2) item.onComplete(item.onCompleteParams[0], item.onCompleteParams[1])
+							else if (item.onCompleteParams.length == 3) item.onComplete(item.onCompleteParams[0], item.onCompleteParams[1], item.onCompleteParams[2])
+							else if (item.onCompleteParams.length == 4) item.onComplete(item.onCompleteParams[0], item.onCompleteParams[1], item.onCompleteParams[2], item.onCompleteParams[3])
+							else if (item.onCompleteParams.length == 5) item.onComplete(item.onCompleteParams[0], item.onCompleteParams[1], item.onCompleteParams[2], item.onCompleteParams[3], item.onCompleteParams[4])
+							else if (item.onCompleteParams.length > 5) {trace("You can only have up to 5 onComplete params. Sorry. Put them in an object or something first.");}
+						} else {
+							item.onComplete();
+						}
+					}
+					item.status = SMObject.DISPOSABLE;
+					disposeSound(item);
+					return;
+				
+				} else { // loops, and still have some or infinite
+					if (!item.loopCounter) item.loopCounter = item.loop;
+					item.loopCounter--;
+					item.status = SMObject.READY;
+					playItem(item);
+					return;
+				}
+				
+			} else if (item.type == SMObject.SEQUENCE || item.type == SMObject.SEQUENCE_LOOP) {
+				item.sequencePosition++;
+				if (item.sequencePosition+1 > item.source.length) {
+					// reached end of seq
+					if (item.type == SMObject.SEQUENCE_LOOP) {
+						// loop back?
+						if (!item.loopCounter) item.loopCounter = item.loop;
+						if (item.loopCounter == 1) {
+							// reach max loops, dispose and send onComplete
+							if (item.onComplete) {
+								if (item.onCompleteParams) {
+										 if (item.onCompleteParams.length == 1) item.onComplete(item.onCompleteParams[0])
+									else if (item.onCompleteParams.length == 2) item.onComplete(item.onCompleteParams[0], item.onCompleteParams[1])
+									else if (item.onCompleteParams.length == 3) item.onComplete(item.onCompleteParams[0], item.onCompleteParams[1], item.onCompleteParams[2])
+									else if (item.onCompleteParams.length == 4) item.onComplete(item.onCompleteParams[0], item.onCompleteParams[1], item.onCompleteParams[2], item.onCompleteParams[3])
+									else if (item.onCompleteParams.length == 5) item.onComplete(item.onCompleteParams[0], item.onCompleteParams[1], item.onCompleteParams[2], item.onCompleteParams[3], item.onCompleteParams[4])
+									else if (item.onCompleteParams.length > 5) {trace("You can only have up to 5 onComplete params. Sorry. Put them in an object or something first.");}
+								} else {
+									item.onComplete();
+								}
+							}
+							item.status = SMObject.DISPOSABLE;
+							disposeSound(item);
+							return;
+						} else {
+							item.loopCounter--;
+							item.sequencePosition = 0;
+							item.status = SMObject.READY;
+							playItem(item);
+							return;
+						}
+						
+					} else if (item.type == SMObject.SEQUENCE) {
+						if (item.onComplete) {
+						if (item.onCompleteParams) {
+								 if (item.onCompleteParams.length == 1) item.onComplete(item.onCompleteParams[0])
+							else if (item.onCompleteParams.length == 2) item.onComplete(item.onCompleteParams[0], item.onCompleteParams[1])
+							else if (item.onCompleteParams.length == 3) item.onComplete(item.onCompleteParams[0], item.onCompleteParams[1], item.onCompleteParams[2])
+							else if (item.onCompleteParams.length == 4) item.onComplete(item.onCompleteParams[0], item.onCompleteParams[1], item.onCompleteParams[2], item.onCompleteParams[3])
+							else if (item.onCompleteParams.length == 5) item.onComplete(item.onCompleteParams[0], item.onCompleteParams[1], item.onCompleteParams[2], item.onCompleteParams[3], item.onCompleteParams[4])
+							else if (item.onCompleteParams.length > 5) {trace("You can only have up to 5 onComplete params. Sorry. Put them in an object or something first.");}
+						} else {
+							item.onComplete();
+						}
+					}
+					item.status = SMObject.DISPOSABLE;
+					disposeSound(item);
+					return;						
+					}
+				} else {
+					// in middle of seq
+					item.status = SMObject.READY;
+					playItem(item);
+					return;
+				}
+			} else if (item.type == SMObject.SINGLE_LOOP_GAPLESS) {
+				// dont do anything, it's already playing the next sound, and will come back to this one.
+			}
+		}
+		
+		
+		private function disposeSound(item) {
+			if (verbosemode >= 15) {trace(traceprepend+"Disposing of sound ID: " + item.id);};
+			item.status = SMObject.DISPOSED;
+			if (item.pauseOnTimer) {clearTimeout(item.pauseOnTimer);}
+			if (item.loadername) {
+				try {LoaderMax.getLoader(item.loadername).cancel();} catch (e) {};
+				try {LoaderMax.getLoader(item.loadername).pauseSound();} catch (e) {};
+				try {LoaderMax.getLoader(item.loadername).dispose();} catch (e) {};
+			}
+			for (var i:String in theQueue) {
+				if (theQueue[i] === item) {
+					trace("Disposing of item: " + item.id);
+					delete(theQueue[i]);
+				}
+			}
+		}
 		
 		
 		
 		
+		// ================ User Usable Functions other than playSound =====================
+		public function preload(source:*, onComplete:Function = null):void {
+			if (verbosemode >= 5) {trace(traceprepend+"Preloading: " + source);};
+			var preloader:LoaderMax = new LoaderMax({onComplete:onComplete});
+			if (source is Array) {
+				for (var x:String in source){
+					preloader.append(new MP3Loader(basepath + source[x], {autoPlay:false}));
+				};
+			} else {
+				preloader.append(new MP3Loader(basepath + source, {autoPlay:false}));
+			}
+			preloader.load();
+		}
+		
+		
+		public function resumeSound(i:*):void {
+			if (i is Number) {
+				if (verbosemode >= 10) {trace(traceprepend+"Resuming: " + i);};
+				for (var j:String in theQueue) {
+					if (theQueue[j].id == i) {
+						i = theQueue[j];
+					}
+				}
+			}
+			if (i.status == SMObject.PAUSED) {
+				i.status = SMObject.PLAYING;
+				if (i.type == SMObject.SEQUENCE || i.type == SMObject.SEQUENCE_LOOP) {
+					i.loader.getChildren()[i.sequencePosition].playSound();
+				} else {
+					i.loader.playSound();
+				}
+			}
+		}
+		public function pauseSound(i:*):void {
+			if (i is Number) {
+				if (verbosemode >= 10) {trace(traceprepend+"Pausing: " + i);};
+				for (var j:String in theQueue) {
+					if (theQueue[j].id == i) {
+						i = theQueue[j];
+					}
+				}
+			}
+			if (i.status == SMObject.PLAYING) {
+				i.status = SMObject.PAUSED;
+				if (i.type == SMObject.SEQUENCE || i.type == SMObject.SEQUENCE_LOOP) {
+					i.loader.getChildren()[i.sequencePosition].pauseSound();
+				} else {
+					i.loader.pauseSound();
+				}
+			}
+		}
+		public function stopSound(i:*):void {
+			if (i is SMObject) {
+				if (verbosemode >= 10) {trace(traceprepend+"Stopping: " + i);};
+				disposeSound(i);
+			} else if (i is Number) {
+				for (var j:String in theQueue) {
+					if (theQueue[j].id == i) {
+						disposeSound(theQueue[j]);
+					}
+				}
+			}
+		}
+		
+		
+		public function muteSound(i:*):void {
+			if (i is Number) {
+				if (verbosemode >= 10) {trace(traceprepend+"Muting: " + i);};
+				for (var j:String in theQueue) {
+					if (theQueue[j].id == i) {
+						i = theQueue[j];
+					}
+				}
+			}
+			if (!i.originalvolume) i.originalvolume = i.volume;
+			i.volume = 0;
+			if (i.type == SMObject.SEQUENCE || i.type == SMObject.SEQUENCE_LOOP) {
+				i.loader.getChildren()[i.sequencePosition].volume = 0;
+			} else {
+				i.loader.volume = 0;
+			}
+		}
+		public function unmuteSound(i:*):void {
+			if (i is Number) {
+				if (verbosemode >= 10) {trace(traceprepend+"Unmuting: " + i);};
+				for (var j:String in theQueue) {
+					if (theQueue[j].id == i) {
+						i = theQueue[j];
+					}
+				}
+			}
+			i.volume = i.originalvolume
+			if (i.type == SMObject.SEQUENCE || i.type == SMObject.SEQUENCE_LOOP) {
+				i.loader.getChildren()[i.sequencePosition].volume = i.volume;
+			} else {
+				i.loader.volume = i.volume;
+			}
+		}
+		
+		
+		
+		public function resumeAllSounds():void {
+			if (verbosemode >= 10) {trace(traceprepend+"Resume All Sounds");};
+			for (var i:String in theQueue) {
+				resumeSound(theQueue[i]);
+			}
+		}
+		public function pauseAllSounds():void {
+			if (verbosemode >= 10) {trace(traceprepend+"Pause All Sounds");};
+			for (var i:String in theQueue) {
+				pauseSound(theQueue[i]);
+			}					
+		}
+		public function stopAllSounds():void {
+			if (verbosemode >= 10) {trace(traceprepend+"Stop All Sounds");};
+			for (var i:String in theQueue) {
+				disposeSound(theQueue[i]);
+			}		
+		}
+		
+		
+		public function resumeChannel(channel:String):void {
+			if (verbosemode >= 10) {trace(traceprepend+"Resume Channel: " + channel);};
+			for (var i:String in theQueue) {
+				if (theQueue[i].channel == channel) resumeSound(theQueue[i]);
+			}
+		}
+		public function pauseChannel(channel:String):void {
+			if (verbosemode >= 10) {trace(traceprepend+"Pause Channel: " + channel);};
+			for (var i:String in theQueue) {
+				if (theQueue[i].channel == channel) pauseSound(theQueue[i]);
+			}
+		}
+		public function stopChannel(channel:String):void {
+			if (verbosemode >= 10) {trace(traceprepend+"Stop Channel: " + channel);};
+			for (var i:String in theQueue) {
+				if (theQueue[i].channel == channel) disposeSound(theQueue[i]);
+			}
+		}
+		
+		
+		public function cancelPauseOn(name:String) {
+			if (verbosemode >= 10) {trace(traceprepend+"Cancel Pause On with name: " + name);};
+			for (var i:String in theQueue) {
+				if (theQueue[i].pauseOnName == name) {
+					if (theQueue[i].status == SMObject.NEW || theQueue[i].status == SMObject.LOADING || theQueue[i].status == SMObject.PAUSEON || theQueue[i].status == SMObject.PAUSEONREADY || theQueue[i].status == SMObject.READY) {
+						disposeSound(theQueue[i]);
+					}
+				}
+			}
+		}
+		public function cancelPauseOnsFrom(parent) {
+			var parentName = parent.toString();
+			parent = null;
+			
+			if (verbosemode >= 10) {trace(traceprepend+"Cancel Pause Ons from caller: " + parentName);};
+			
+			for (var i:String in theQueue) {
+				if (theQueue[i].pauseOnTime && theQueue[i].parent == parentName) {
+					if (theQueue[i].status == SMObject.NEW || theQueue[i].status == SMObject.LOADING || theQueue[i].status == SMObject.PAUSEON || theQueue[i].status == SMObject.PAUSEONREADY || theQueue[i].status == SMObject.READY) {
+						disposeSound(theQueue[i]);
+					}
+				}
+			}
+		}
+		public function cancelAllPauseOns() {
+			if (verbosemode >= 10) {trace(traceprepend+"Cancel All Pause Ons");};
+			for (var i:String in theQueue) {
+				if (theQueue[i].pauseOnTime) {
+					if (theQueue[i].status == SMObject.NEW || theQueue[i].status == SMObject.LOADING || theQueue[i].status == SMObject.PAUSEON || theQueue[i].status == SMObject.PAUSEONREADY || theQueue[i].status == SMObject.READY) {
+						disposeSound(theQueue[i]);
+					}
+				}
+			}
+		}
 		
 		
 		
 		
+		public function resumeSoundsFrom(parent:*):void {
+			var parentName = parent.toString();
+			parent = null;
+			
+			if (verbosemode >= 10) {trace(traceprepend+"Resume Sounds from caller: " + parentName);};
+			
+			for (var i:String in theQueue) {
+				if (theQueue[i].parent == parentName) {
+					if (theQueue[i].status == SMObject.PAUSED) {
+						theQueue[i].status = SMObject.PLAYING;
+						if (theQueue[i].type == SMObject.SEQUENCE || theQueue[i].type == SMObject.SEQUENCE_LOOP) {
+							theQueue[i].loader.getChildren()[theQueue[i].sequencePosition].playSound();
+						} else {
+							theQueue[i].loader.playSound();
+						}
+					}
+				}
+			}
+		}
+		public function pauseSoundsFrom(parent:*, deprecated:* = null):void {
+			var parentName = parent.toString();
+			parent = null;
+			
+			if (verbosemode >= 10) {trace(traceprepend+"Pause Sounds from caller: " + parentName);};
+			
+			for (var i:String in theQueue) {
+				if (theQueue[i].parent == parentName) {
+					if (theQueue[i].status == SMObject.PLAYING) {
+						theQueue[i].status = SMObject.PAUSED;
+						if (theQueue[i].type == SMObject.SEQUENCE || theQueue[i].type == SMObject.SEQUENCE_LOOP) {
+							theQueue[i].loader.getChildren()[theQueue[i].sequencePosition].pauseSound();
+						} else {
+							theQueue[i].loader.pauseSound();
+						}
+					}
+				}
+			}			
+		}
+		public function stopSoundsFrom(parent:*, deprecated:* = null):void {
+			var parentName = parent.toString();
+			parent = null;
+			
+			if (verbosemode >= 10) {trace(traceprepend+"Stop Sounds from caller: " + parentName);};
+			
+			for (var i:String in theQueue) {
+				if (theQueue[i].parent == parentName) {
+					disposeSound(theQueue[i]);
+				}
+			}
+		}
+		
+			
+		
+		public function muteChannel(channel:String = null):void {
+			
+			if (verbosemode >= 10) {trace(traceprepend+"Mute Channel: " + channel);};
+			
+			if (mutedChannels.indexOf(channel) == -1) mutedChannels.push(channel);
+			for (var i:String in theQueue) {
+				var item = theQueue[i];
+				if (mutedChannels.indexOf(item.channel) != -1) {
+					//should be muted
+					muteSound(item);
+				} else {
+					//shouldnt be muted
+					//unmuteSound(item);
+				}
+			}
+		}
+		public function unmuteChannel(channel:String = null):void {
+			
+			if (verbosemode >= 10) {trace(traceprepend+"Unmute Channel: " + channel);};
+			
+			var index = mutedChannels.indexOf(channel);
+			if (index != -1) mutedChannels.splice(index, 1);
+			for (var i:String in theQueue) {
+				var item = theQueue[i];
+				if (mutedChannels.indexOf(item.channel) != -1) {
+					//should be muted
+					//muteSound(item);
+				} else {
+					//shouldnt be muted
+					unmuteSound(item);
+				}
+			}
+		}
 		
 		
 		
 		
+		// ================ Global Config Functions =====================
+		
+		public function setPath(p:String):void {
+			this.basepath = p;
+			if (verbosemode) {trace(traceprepend+"Path for ALL sounds set to: " + p);};
+		}
+		
+		public function setVolume(vol) {
+			if (verbosemode) {trace(traceprepend+"Default volume for new sounds set to: " + vol);};
+			this.defaultVolume = vol;
+		}
+		
+		private function setDefaultGap(gap:Number) {
+			if (verbosemode) {trace(traceprepend+"Default overlap between new 'gapless' sounds set to: " + gap);};
+			this.defaultGap = gap;
+		}
+		
+		
+		
+		
+		// ================= Internal Utility Functions ==================
 		private function compareSources(s1:*, s2:*):Boolean {
+			//returns false if the two items are different, true if theyre identical
+			
 			if (s1 is String && !(s2 is String)) { return false; };
 			if (s1 is Array && !(s2 is Array)) { return false; };
 			
@@ -460,10 +833,8 @@ package com.primalscreen.utils.soundmanager {
 			}
 			
 			if (s1 is Array) {
-			
 				var t1:Array = [];
 				var t2:Array = [];
-				
 				for (var x:String in s1) {
 					if (x is String) {
 						t1.push(x); // dupe the arrays skipping any numbers
@@ -474,829 +845,16 @@ package com.primalscreen.utils.soundmanager {
 						t2.push(y); // dupe the arrays skipping any numbers
 					}
 				}
-				
 				var c:Number = t1.length;
 				while (c--) {
 					if (t1[c-1] != t1[c-1]) {return false;};
 				}
-				
 				return true; 
 			}
-			
 			return false; 
 		}
 		
 		
-				
-				
-				
-				
-				
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		// ================ Managing the sound queue =====================
-		
-		
-		private function checkQueue(e:Event = null):void {
-			//trace("checkQueue()");
-			if (queue && queue.length > 0) {runQueue();};
-		}
-		
-		private function runQueue():void {
-			//trace("runQueue(), length: " + queue.length);			
-			for (var key:String in queue) {
-				
-				var played:Boolean;
-				var source:*;
-				var soundChannel:String;
-				var volume:Number;
-				var sequence:Array;
-				var s:*;
-				var v:SoundTransform;
-				
-				
-				var queueItem:Object = queue[key];
-				
-				// failsafes
-				if (queueItem && queueItem.hasOwnProperty("id")) {
-					
-					if (!queueItem.played && queueItem.ready && queueItem.source) {
-															
-						if (queueItem.source is String) {
-						// START OF PLAYING A SINGLE SOUND
-							if (isSoundLoaded(queueItem.source)) {
-								// it's loaded, play it
-								cancelOtherSounds(queueItem);
-								source = root + queueItem.source;
-								soundChannel = queueItem.soundchannel;
-								volume = queueItem.volume;
-								if (queueItem.pausePoint && !queueItem.gapless) {
-									if (verbosemode >= 15) {trace(traceprepend+"Sound was previously paused at "+ queueItem.pausePoint + " seconds.");};
-								} else {
-									queueItem.pausePoint = 0;
-								}
-								
-								// sound playing bit
-								soundChannels[soundChannel] = new SoundChannel();
-								
-								if (verbosemode >= 10) {trace(traceprepend+"Playing '"+root + queueItem.source+"'");};
-								s = SoundLoader.getContent(source);
-								soundChannels[soundChannel] = s.play(queueItem.pausePoint);
-								if (queueItem.gapless && queueItem.loop != 1) {
-									setUpGapless(queueItem);
-								} else {
-									soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundCompleteEventHandler, false, 0, true);
-								}
-								
-								v = new SoundTransform(volume);
-								soundChannels[soundChannel].soundTransform = v;
-								
-								played = true;
-								queueItem.played = true;
-								// end sound playing bit
-								
-								
-							} else {
-								// it's not yet loaded, load it
-								if (verbosemode >= 10) {trace(traceprepend+"File '" + root + queueItem.source + "' not loaded yet... loading...");};
-								queueItem.ready = false;
-								SoundLoader.add(root + queueItem.source, {type:"sound"});
-								SoundLoader.addEventListener(BulkLoader.COMPLETE, somethingLoaded, false, 0, true);
-								SoundLoader.addEventListener(BulkLoader.ERROR, loadError, false, 0, true);
-								//SoundLoader.get(root + queueItem.source);
-								SoundLoader.start();
-								
-								var newLoadingSound:Object = new Object();
-								newLoadingSound.id = queueItem.id;
-								newLoadingSound.source = queueItem.source;
-								loadingQueue.push(newLoadingSound);
-								
-							}
-						// END OF PLAYING A SINGLE SOUND
-						} else {
-						// START OF PLAYING A SOUND SEQUENCE
-							if (queueItem.source.length && queueItem.source[0] is Number) {
-								// delay
-								played = true;
-								if (timeouts[queueItem.soundchannel]) {
-									clearTimeout(timeouts[queueItem.soundchannel]);
-								}
-								timeouts[queueItem.soundchannel] = setTimeout(delayComplete, queueItem.source[0], queueItem);
-								
-								
-							} else {
-								// sound
-								if (isSeqLoaded(queueItem.source)) {
-									// it's loaded, play it
-									
-									cancelOtherSounds(queueItem);
-									
-									source = root + queueItem.source[0];
-									soundChannel = queueItem.soundchannel;
-									volume = queueItem.volume;
-									if (queueItem.pausePoint) {
-										if (verbosemode >= 15) {trace(traceprepend+"Sound was previously paused at "+ queueItem.pausePoint + " seconds.");};
-									} else {
-										queueItem.pausePoint = 0;
-									}
-									
-									// sound playing bit
-									soundChannels[soundChannel] = new SoundChannel();
-									
-									s = SoundLoader.getContent(source);
-									trace("queueItem.pausePoint: " + queueItem.pausePoint);
-									trace("soundChannels[soundChannel]: " + soundChannels[soundChannel]);
-									trace("queueItem.source[0]: " + queueItem.source[0]);
-									trace("s: " + s);
-									soundChannels[soundChannel] = s.play(queueItem.pausePoint);
-									soundChannels[soundChannel].addEventListener(Event.SOUND_COMPLETE, soundSequencePartCompleteEventHandler, false, 0, true);
-									
-									v = new SoundTransform(volume);
-									soundChannels[soundChannel].soundTransform = v;
-									
-									played = true;
-									// end sound playing bit
-									
-									
-								} else {
-									// it's not yet loaded, load it
-									queueItem.ready = false;
-									for (var w:String in queueItem.source){
-										if (queueItem.source[w] is String) {
-											SoundLoader.add(root + queueItem.source[w], {type:"sound"});
-										}
-									};
-									
-									SoundLoader.addEventListener(BulkLoader.COMPLETE, somethingLoaded, false, 0, true);
-									SoundLoader.addEventListener(BulkLoader.ERROR, loadError);
-									SoundLoader.start();
-									
-									var newLoadingSoundSeq:Object = new Object();
-									newLoadingSoundSeq.id = queueItem.id;
-									newLoadingSoundSeq.source = queueItem.source;
-									loadingQueue.push(newLoadingSoundSeq);
-								}
-							}
-						// END OF PLAYING A SOUND SEQUENCE
-						}
-						
-						// set the played value if we were able to play it
-						if (played) {
-							queueItem.played = true;
-						};
-					};
-				} else {
-					if (verbosemode >= 15) {trace(traceprepend+"Something went wrong, this is a failsafe.");};
-				}
-			};
-		}
-		
-		
-		
-		
-		private function cancelOtherSounds(sound:Object):void {
-			
-			//trace("cancelOtherSounds()");
-			
-			if (!sound.hasOwnProperty("soundchannel")) return;
-			
-			var keepID:Number = sound.id;
-			var channelName:String = sound.soundchannel;
-			
-			for (var x:String in queue) {
-			
-				if (queue[x].soundchannel == channelName) { // if anything in the queue is on the same channel
-					if (queue[x].id != keepID) {
-						obliterate(queue[x]);
-					}
-				}
-			}
-			
-		}
-		
-		
-		
-		private function somethingLoaded(e:Event = null):void {
-			if (loadingQueue.length == 0) return;
-			if (verbosemode >= 15) {trace(traceprepend+"Checking Loading Queue...");};
-			
-			var popFromLoadingQueue = [];
-			for (var x:String in loadingQueue) {
-				
-				var loaded:Boolean = false;
-				if (loadingQueue[x].source is Array) {
-					loaded = isSeqLoaded(loadingQueue[x].source);
-				} else if (loadingQueue[x].source is String) {
-					loaded = isSoundLoaded(loadingQueue[x].source);
-				}
-				
-				if (loaded) {
-					for (var y:String in queue) {
-						if (queue[y].id == loadingQueue[x].id) {
-							queue[y].ready = true;
-						}
-					}
-					popFromLoadingQueue.push(x);
-				}				
-			}
-			
-			popFromLoadingQueue.reverse();
-			
-			for (var z:String in popFromLoadingQueue) {
-				loadingQueue.splice(popFromLoadingQueue[z], 1);
-			}
-			
-			checkQueue();
-		}
-		
-		
-		
-		private function isSeqLoaded(seq:Array):Boolean {
-			var allLoaded = true;
-			for (var x:String in seq) {
-				if (seq[x] is String) {
-					if (!SoundLoader.getContent(root + seq[x])) {allLoaded = false;};
-				}
-			}
-			if (allLoaded) return true;
-			return false;
-		}
-		
-		private function isSoundLoaded(s:String):Boolean {
-			if (SoundLoader.getContent(root + s) && SoundLoader.getContent(root + s).length > 0) {return true;};
-			return false;
-		}
-		
-		private function loadError(e:ErrorEvent):void {
-			if (e.target.hasOwnProperty("url") && e.target.url.hasOwnProperty("url")) {
-				// this is a little messy huh? basically we're catching the load error event, 
-				// thrown by BulkLoader, and then going into it's URLRequest object, which they call "url"
-				// and getting the "url" property of it.
-				if (verbosemode) {trace(traceprepend+"Loading of file '" + e.target.url.url + "' failed, you probably mistyped. SoundManager will ignore any requests for this file from now on.");};
-				failedURLs.push(e.target.url.url);
-				
-			} else {
-				if (verbosemode) {trace(traceprepend+"A file failed to load, but SoundManager couldn't catch it's URL for some reason.");};
-			};
-		}
-		
-		
-		
-		
-		
-		private function soundCompleteEventHandler(e:Event):void {
-			// destroy the sound channel
-			var soundChannel:String;
-			
-			for (var x:String in soundChannels) {
-				if (soundChannels[x] === e.currentTarget) {
-					soundChannel = x;
-				}
-			}
-			soundFinished(soundChannel);
-		}
-		
-		
-		private function gaplessSoundCompleteEventHandler(e:Event):void {
-			var soundChannel:String;
-			
-			for (var x:String in soundChannels) {
-				if (soundChannels[x] === e.currentTarget) {
-					soundChannel = x;
-				}
-			}
-			// we dont call soundFinished here, because the sound is actually still going on another channel
-		}
-		
-		
-		private function soundFinished(soundChannel:String):void {
-			// find the sound
-			var s:Object;
-			for (var x:String in queue) {
-				if (queue[x].soundchannel == soundChannel) {
-					s = queue[x];
-				}
-			}
-			
-			if (verbosemode >= 10) {trace(traceprepend+"Sound finished: " + s.id);};
-			
-			// dispatch the end event, if requested
-			if (s && s.event != null && s.event is String) {
-				if (verbosemode >= 10) {trace(traceprepend+"Dispatching event: '" + s.event + "'");};
-				dispatchEvent(new Event(s.event, true));
-			}
-			
-			// kill the real sound channel
-			delete(soundChannels[soundChannel]);
-			
-			// and take the sound out of the queue, unless it's meant to loop, in which case, set it back to unplayed
-			if (s && s.loop > 1 || s.loop == 0) {
-				//trace("sound with loop finished");
-				s.played = false;
-				s.pausePoint = 0;
-				if (s && s.loop > 1) {s.loop--;};
-				checkQueue();
-			} else if (s) {
-				obliterate(s);
-			}
-		}
-		
-		
-		
-		
-		private function delayComplete(sound:Object):void {
-			sound.source.shift();
-			sound.played = false;
-			checkQueue();
-		}
-		
-		private function soundSequencePartCompleteEventHandler(e:Event):void {
-			
-			if (!soundChannels) return;
-			
-			var soundChannel:String;
-			for (var x:String in soundChannels) {
-				if (soundChannels[x] === e.currentTarget) {
-					soundChannel = x;
-				}
-			}
-			
-			soundSequencePartFinished(soundChannel);
-		}
-		
-		
-		private function soundSequencePartFinished(soundChannel:String):void {
-			
-			// check to see if the sound has been stopped or interrupted
-			var s:Object;
-			for (var x:String in queue) {	
-				if (queue[x].soundchannel == soundChannel) {
-					s = queue[x];
-										
-					// if the sound channel still exists
-					if (s) {
-						
-						// find the soundID
-						var soundID:Number = s.id;
-						
-						if (verbosemode >= 15) {trace(traceprepend+"Sound finished: " + soundID);};
-							
-						// remove the first item from the sound sequence
-						s.source.shift();
-						
-						// dispatch the end event, if requested
-						if (s.source.length == 0 && s.event != null && s.event is String) {
-							if (verbosemode) {trace(traceprepend+"Dispatching event: '" + s.event + "'");};
-							dispatchEvent(new Event(s.event, true));
-						}
-						// kill the sound channel
-						delete(soundChannels[soundChannel]);
-						
-						
-						if (s.source.length == 0) {
-							if (s.loop == 1) {
-								// out of parts and not meant to loop
-								obliterate(s);
-							} else {
-								// out of parts, meant to be looping infinately
-								// so go get the saved sequence from the sequences database 
-								s.source = sequences[s.id].concat();
-								s.played = false;
-								if (s.loop > 1) {s.loop--;};
-							}
-						} else {
-							s.played = false;
-						}
-							
-					
-					}
-					
-					
-				}
-			}
-			
-			
-			
-			
-			checkQueue();
-		}
-		
-		
-		
-		
-		
-		
-		private function setUpGapless(soundItem:Object) {
-			var gap = gaplessGap;
-			if (soundItem.gap) gap = soundItem.gap;
-			
-			var soundLength = Math.floor(SoundLoader.getContent(soundItem.source).length);
-			var timerLength = soundLength - gap;
-			if (verbosemode >= 15) {trace(traceprepend+"gapless timer length = " + timerLength + "ms");};
-			
-			var newTimer = setTimeout(gaplessTimeoutHandler, timerLength, soundItem.id);
-			
-			soundItem.gaplessTimer = newTimer;
-		}
-		
-		
-		private function gaplessTimeoutHandler(id):void {
-			//trace("gapless soundID: " + id);
-			
-			var s:Object = null;
-			for (var x:String in queue) {
-				if (queue[x].id == id) {
-					s = queue[x];
-				}
-			}
-			
-			if (!s) return;
-			
-			// change the name of the reference to the soundchannel in the soundChannels object
-			soundChannels[s.soundchannel + "-previousLoop"] = soundChannels[s.soundchannel];
-			soundChannels[s.soundchannel] = null;
-			
-			// and add a listener to it to destroy itself when the first sound finishes
-			soundChannels[s.soundchannel + "-previousLoop"].addEventListener(Event.SOUND_COMPLETE, gaplessSoundCompleteEventHandler, false, 0, true);
-			
-			s.played = false;
-			checkQueue();
-		}
-		
-		
-		
-		
-		private function obliterate(sound:*):void {
-			// takes a sound object, or a sound ID and destroys it, whether it's playing, waiting to play, or just added to the queue
-			
-			if (sound is Number) {
-			
-				for (var x:String in queue) {
-					if (queue[x].id == sound) {
-						if (verbosemode >= 15) {trace(traceprepend+"Obliterating Sound: "+queue[x].source);};
-						if (queue[x].event && queue[x].event is String && queue[x].eventOnInterrupt) {
-							if (verbosemode >= 10) {trace(traceprepend+"Sound with event interrupted: '" + queue[x].event + "'- dispatching");};
-							dispatchEvent(new Event(queue[x].event, true));
-						}
-						if (soundChannels.hasOwnProperty(queue[x].soundchannel)) {
-							soundChannels[queue[x].soundchannel].stop();
-							delete(soundChannels[queue[x].soundchannel]);
-						}
-						queue.splice(x, 1);
-					}
-				}
-				
-			} else if (sound is Object) {
-				
-				for (var y:String in queue) {
-					if (queue[y] === sound) {
-						if (verbosemode >= 15) {trace(traceprepend+"Obliterating Sound: "+queue[y].source);};
-						if (queue[y].event && queue[y].event is String && queue[y].eventOnInterrupt) {
-							if (verbosemode >= 10) {trace(traceprepend+"Sound with event interrupted: '" + queue[y].event + "'- dispatching");};
-							dispatchEvent(new Event(queue[y].event, true));
-						}
-						if (soundChannels.hasOwnProperty(queue[y].soundchannel)) {
-							soundChannels[queue[y].soundchannel].stop();
-							delete(soundChannels[queue[y].soundchannel]);
-						}
-						queue.splice(y, 1);
-					}
-				}
-			}
-		}
-		
-		
-		
-		
-		
-		
-		
-		
-				
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		// ================ Lipsync Functions =====================
-		
-		public function getChannelAmplitude(channel, side = "higher") {
-			
-			if (soundChannels.hasOwnProperty(channel)) {
-				
-				var l;
-				var r;
-				
-				if (side == "left" || side == "l" || side == "L") {
-					return soundChannels[channel].leftPeak;
-				}
-				if (side == "right" || side == "r" || side == "R") {
-					return soundChannels[channel].leftPeak;
-				}
-				if (side == "average") {
-					l = soundChannels[channel].leftPeak;
-					r = soundChannels[channel].rightPeak;
-					return (l + r)/2;
-				}
-				if (side == "higher") {
-					l = soundChannels[channel].leftPeak;
-					r = soundChannels[channel].rightPeak;
-					if (l >= r) return l;
-					return r;
-				}
-			}
-			
-			return 0;
-			
-		}
-				
-				
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		// ================ Sound Control Functions =====================
-		
-		public function resumeSound(id:Number):void {
-			// note that this function doesn't actually resume a sound, it just switches it back to "unplayed"
-			// in the queue, so it will be played on the next loop. When it's played, it remembers it's position.
-			for (var x:String in queue) {
-				if (queue[x].id == id) {
-					var s = queue[x];
-					if (s.paused) {
-						if (verbosemode) {trace(traceprepend+"Resuming paused sound by id: " + id);};
-						//soundChannels[queue[x].soundchannel].play();
-						s.paused = false;
-						s.played = false;
-					} else {
-						if (verbosemode) {trace(traceprepend+"Tried to resume audio that wasn't paused.");};
-					}
-				}
-			}
-			checkQueue();
-		};
-		
-		public function pauseSound(id:Number):void {
-			if (verbosemode) {trace(traceprepend+"Ssshhhh! Pausing sound by id: " + id);};
-						
-			for (var x:String in queue) {
-				if (queue[x].id == id) {
-					var s = queue[x];
-					if (soundChannels.hasOwnProperty(s.soundchannel)) {
-						var pausePoint:Number = soundChannels[s.soundchannel].position;
-						soundChannels[s.soundchannel].stop();
-						delete(soundChannels[s.soundchannel]);
-						s.pausePoint = pausePoint;
-						s.paused = true;
-						if (s.hasOwnProperty("gaplessTimer")) {
-							//trace("gapless clear timeout");
-							clearTimeout(s.gaplessTimer);
-						}
-					}
-				}
-			}
-			checkQueue();
-		}
-		
-		public function stopSound(id:Number):void {
-			if (verbosemode) {trace(traceprepend+"Stopping sound with the id, " + id + ", without prejudice.");};
-			
-			obliterate(id);
-		}
-		
-		
-		
-		public function resumeAllSounds():void {
-			if (verbosemode) {trace(traceprepend+"All together now! Resuming all sounds.");};
-			
-			for (var x:String in queue) {
-				resumeSound(queue[x].id);
-			}
-		};
-		public function pauseAllSounds():void {
-			if (verbosemode) {trace(traceprepend+"Everybody, ssshhhh! Pausing all sounds.");};
-			
-			for (var x:String in queue) {
-				pauseSound(queue[x].id);
-			}
-						
-		}
-		public function stopAllSounds():void {
-			if (verbosemode) {trace(traceprepend+"Everybody shut up. Stopping all sounds.");};
-			
-			cancelAllPauseOns();
-			
-			for (var x:String in queue) {
-				obliterate(queue[x]);
-			}
-						
-		}
-		
-		public function resumeChannel(soundchannel:String):void {
-			if (verbosemode) {trace(traceprepend+"Ok just you guys. Resuming sounds on channel: "+soundchannel);};
-			for (var x:String in queue) {
-				if (queue[x].soundchannel == soundchannel) {
-					resumeSound(queue[x].id);
-				}
-			}
-		};
-		public function pauseChannel(soundchannel:String):void {
-			if (verbosemode) {trace(traceprepend+"You guys, ssshhh! Pausing sounds on channel: "+soundchannel);};
-			
-			for (var x:String in queue) {
-				if (queue[x].soundchannel == soundchannel) {
-					pauseSound(queue[x].id);
-				}
-			}
-		}
-		public function stopChannel(soundchannel:String):void {
-			if (verbosemode) {trace(traceprepend+"You guys, shut up! Stopping sounds on channel: "+soundchannel);};
-			
-			for (var x:String in queue) {
-				if (queue[x].soundchannel == soundchannel) {
-					obliterate(queue[x]);
-				}
-			}
-		}
-		
-		
-		public function cancelPauseOn(name:String) {
-			if (verbosemode >= 10) {
-				trace(traceprepend+"Cancelling any Pause-Ons with the name:  "+name);
-			};
-			for (var x:String in pauseOnTimeouts) {
-				if (pauseOnTimeouts[x].name == name) {
-					clearTimeout(uint(x));
-				}
-			};
-		}
-		
-		public function cancelPauseOnsFrom(parent) {
-			var parentName:String = "";
-			if (parent) {
-				parentName = parent.toString();
-				parent = null;
-			}
-			if (verbosemode >= 10) {
-				trace(traceprepend+"Cancelling any Pause-Ons from this: "+parentName);
-			};
-			for (var x:String in pauseOnTimeouts) {
-				if (pauseOnTimeouts[x].parentname == parentName) {
-					clearTimeout(uint(x));
-				}
-			};
-		}
-		
-		public function cancelAllPauseOns() {
-			if (verbosemode >= 10) {
-				trace(traceprepend+"Cancelling all Pause-Ons");
-			};
-			for (var x:String in pauseOnTimeouts) {
-				clearTimeout(uint(x));
-			};
-			pauseOnTimeouts = new Array();
-		}
-		
-		
-		
-		
-		public function resumeSoundsFrom(target:*):void {
-			
-			var parent = target.toString();
-			if (verbosemode) {trace(traceprepend+"Resuming sounds originally called by "+parent);};
-			
-			for (var x:String in queue) {
-				if (queue[x].parentname == parent) {
-					resumeSound(queue[x].id);
-				}
-			}
-		};
-		public function pauseSoundsFrom(target:*, deprecated:* = null):void {
-			
-			var parent:String = target.toString();
-			if (verbosemode) {trace(traceprepend+"Pausing sounds originally called by "+parent);};
-			
-			for (var x:String in queue) {
-				if (queue[x].parentname == parent) {
-					pauseSound(queue[x].id);
-				}
-			}
-			
-		}
-		public function stopSoundsFrom(target:*, deprecated:* = null):void {
-			
-			var parent:String = target.toString();
-			cancelPauseOnsFrom(target);
-			target = null;
-			
-			if (verbosemode) {trace(traceprepend+"Stopping sounds originally called by "+parent);};
-			
-			if (!parent || parent == "" || !queue) return;
-			
-			for (var z:String in queue) {
-				if (queue[z] && queue[z].parentname == parent) {
-					obliterate(queue[z]);
-				}
-			}
-			
-		}
-		
-			
-		
-		public function muteChannel(channel:String = null):void {
-			
-			if (channel) {
-				if (mutedChannels.indexOf(channel) == -1) {
-					mutedChannels.push(channel);
-					if (verbosemode) {trace(traceprepend+"Be vewwy vewwy quiet. Muting channel, "+channel);};
-				} else {
-					if (verbosemode) {trace(traceprepend+"Channel already muted: "+channel);};
-				}
-			} else {
-				if (verbosemode) {trace(traceprepend+"Error: Used muteChannel without naming a channel to mute.");};
-			}
-			
-			checkQueue();
-		}
-		
-		
-		public function unmuteChannel(channel:String = null):void {
-			
-			if (channel) {
-				if (mutedChannels.indexOf(channel) > -1) {
-					mutedChannels.splice(mutedChannels.indexOf(channel), 1);
-					if (verbosemode) {trace(traceprepend+"Unmuting channel: "+channel);};
-				} else {
-					if (verbosemode) {trace(traceprepend+"Channel not muted: "+channel);};
-				}
-			} else {
-				if (verbosemode) {trace(traceprepend+"Error: Used unmuteChannel without naming a channel to unmute.");};
-			}
-			
-			checkQueue();
-		}
-		
-		private function setDefaultGap(gap:Number) {
-			gaplessGap = gap;
-		}
-		
-		public function preload(source:*, event:String = null):void {
-			
-			if (source is Array) {
-				for (var x:String in source){
-					SoundLoader.add(root + source[x], {id: event, type:"sound"});
-				};
-			} else {
-				SoundLoader.add(root + source, {id: event, type:"sound"});
-			}
-			
-			if (event) {
-				preloadQueue.push(event);
-				SoundLoader.addEventListener(BulkLoader.COMPLETE, onAllLoaded, false, 0, true);
-			}
-			
-			SoundLoader.start();
-			
-		}
-		
-		
-		private function onAllLoaded(e:Event):void {
-			for (var x:String in preloadQueue) {
-				if (SoundLoader.getContent(preloadQueue[x])) {
-					dispatchEvent(new Event(preloadQueue[x], true));
-				}
-			}
-			checkQueue();
-		}
-		
-			
 	}
 	
 }
@@ -1306,17 +864,4 @@ package com.primalscreen.utils.soundmanager {
 
 
 
-
-
-
-
-
 internal class SingletonBlocker {}
-
-
-
-
-
-
-
-

@@ -1,7 +1,7 @@
 
 <html>
 	<head>
-		<title>Primal Screen Actionscript Sound Manager Class Documentation</title>
+		<title>Primal Screen Actionscript SoundManager Class Documentation</title>
 	</head>
 
 	<style>
@@ -40,6 +40,9 @@
 			overflow: auto;
 			color: #BD4646;
 		}
+		.deprecated {
+			color: #BD4646;
+		}
 
 		pre {
 			background-color: #E4F1F3;
@@ -70,39 +73,24 @@
 
 
 <div id="container">
-<h1>Primal Screen Sound Manager b0.117 Documentation</h1>
+<h1>Primal Screen SoundManager b.124 Documentation</h1>
 
 
 <div class="important">
-	<strong>Important:</strong> This version is not backward compatible with previous versions (before b0.7). If you want an old version look 
-	<a href="https://github.com/primalscreen/as3/tree/8b14b0820b4dfc74911fc04cb9c4e89f1643f880/SoundManager/com/primalscreen/soundmanager">here.</a>
-
-	<br>
-	<br>
-
-	If you want to move up from the old version, it's mostly the same. The three major changes are
-	<ul>
-		<li>
-			SoundManager.getInstance() now has just one argument, and it's an options object that contains all of the options
-			that used to be available through multiple arguments.
-		</li>
-		<li>
-			playSound() now has just three arguments. They are <em>source</em> (hasn't changed), <em>this</em> (a reference to the calling class), 
-			and	<em>options</em> an object that contains all the options that used to be available through several arguments.
-		</li>
-		<li>
-			The interrupt system is gone, and has been replaced by a priority system, where you give sounds a numerical priority, and they
-			will only play if there isn't a sound with a higher priority on the same channel already playing.
-		</li>
-	</ul>	
+	<strong>Important:</strong> This version is a bit of a leap forward, with a few steps back. There were vast performance
+	improvements, and a few	extra features were added, but in the meantime, a few of the less used functions went away, 
+	and they're marked in red in this document. Most of them are coming back in a later version, but I wanted to roll 
+	this version out ASAP. If you need the newest version from before this change, look 
+	<a href="https://github.com/primalscreen/as3/commit/6878f8926c4353d742ed0c46d5f40d777eca64f5">here.</a><br /><br />
+	<strong>Format Change: </strong> This version is also the first to support ONLY MP3 format. If you can't use MP3, you're 
+	out of luck. Sorry, but I had to consolidate things down to one format, for performance, and MP3 is the obvious choice.
 </div>
 
 
 <h2 style="margin-top:-20px;">Installation</h2>
-<p>Put the <span class="fakepre">com.primalscreen.soundmanager.SoundManager</span> package and the BulkLoader package 
+<p>Put the <span class="fakepre">com.primalscreen.utils.soundmanager.SoundManager</span> package and the BulkLoader package 
 files in your classpath. Keep the <span class="fakepre">com.primalscreen</span>... and 
-<span class="fakepre">br.com.stimuli</span>... folder structures.</p>
-<p>If it didn't come with this file, you can get <a href="http://code.google.com/p/bulk-loader/">BulkLoader here</a>.</p>
+<span class="fakepre">com.greensock</span>... folder structures.</p>
 
 <p>Then instantiate like this (it's a singleton, you can't just use <span class="fakepre">new SoundManager()</span>):</p>
 <pre>
@@ -137,10 +125,9 @@ soundManager = SoundManager.getInstance();
 		 Defaults to <span class="fakepre">SoundManager.NORMAL</span>.</li>
 	<li><strong>trace</strong> <em>(String):</em> When in verbose mode, this is what prepends everything that SoundManager traces. Default 
 	is <span class="fakepre">"SoundManager: "</span>.</li>
-	<li><strong>queueInterval</strong> <em>(Number):</em> While a file is loading, this is the number of milliseconds SoundManager waits before
-	checking again to see if the file is ready. Make it higher if you have any performance issues. Default is <span class="fakepre">100</span>.</li>
-	<li><strong>samePriorityInterrupts</strong> <em>(Boolean):</em> If true, a second sound playing at the same priority on the same channel
-	will interrupt an existing sound. If false, the existing sound will play. Defaults to <span class="fakepre">true</span>.</li>
+	<li><strong>queueInterval</strong> <em>(Number):</em> <span class="deprecated">DEPRECATED</span></li>
+	<li><strong>samePriorityInterrupts</strong> <em>(Boolean):</em> <span class="deprecated">DEPRECATED</span>
+</li>
 	
 	
 </ul>
@@ -155,7 +142,7 @@ soundManager = SoundManager.getInstance({verbose: true, trace:"SoundManager says
 <h3>playSound()</h3>
 <p>Now that you have a singleton instance called of SoundManager called soundManager, let's play a sound:</p>
 <pre>soundManager.playSound("assets/testaudio.mp3");</pre>
-<p>This is the simplest example. It loads the mp3 with bulkloader and plays it when ready. playSound has three arguments. In order they are:</p>
+<p>This is the simplest example. It loads the mp3 and plays it when ready. playSound has three arguments. In order they are:</p>
 
 <ul>
 	<li><strong>Source</strong> <em>(String/Array):</em> the filename, or array of filenames you want to load 
@@ -170,33 +157,34 @@ soundManager = SoundManager.getInstance({verbose: true, trace:"SoundManager says
 
 <p><span class="fakepre">playSound()</span> has an options object in it's third parameter, here are the available options.</p>
 <ul>
-	<li><strong>event</strong> <em>(String):</em> The event you want the SoundManager to dispatch when this 
-	sound finishes.</li>
+	<li><strong>event</strong> <em>(String):</em> <span class="deprecated">DEPRECATED</span>. See onComplete</li>
+	<li><strong>onComplete</strong> <em>(Function):</em> The public function, in the calling class, that should be called when the sound finishes playing.</li>
+	<li><strong>onCompleteParams</strong> <em>(Array):</em> An array of parameters that are sent to the onComplete function.</li>
 	<li><strong>channel*</strong> <em>(String):</em> The name of the channel you want to play the sound on. *Read more about what a "channel" is, below.
 	These aren't real SoundChannels, think of it like if there's a sound playing on channel A, and you play 
 	another one on that same channel, it will stop the first sound and play the second. </li>
 	<li><strong>priority</strong> <em>(Number):</em> Sets the priority level of the sound. If another sound exists on the same channel,
 	the one with the higher priority will play, cutting off the existing sound if necessary.</li>
-	<li><strong>eventOnInterrupt</strong> <em>(Boolean):</em> Decides whether the event will fire when a sound is interrupted. Good backup plan for when you're relying on that event to move the application forward, but it's possible to interrupt the sound. Default: false</li>
+	<li><strong>eventOnInterrupt</strong> <em>(Boolean):</em> <span class="deprecated">DEPRECATED</span></li>
 	<li><strong>dontInterruptSelf</strong> <em>(Boolean):</em> If set to true, when the same sound is requested on the same channel, it will be ignored. Default: false.</li>
 	<li><strong>volume</strong> <em>(Number):</em> 0 is muted, 1 is normal volume. Defaults to 1, unless you've already used setVolume();</li>
 	<li><strong>loop</strong> <em>(Number):</em> Number of times to loop the sound. 0 is infinite, 1 is default.</li>
 	<li><strong>pauseOnTime</strong> <em>(Number):</em> Number of milliseconds to hold the sound out of the queue. It's called "pauseOnTime" because this is used when you want an audio cue to play if a user hovers their mouse over a button.</li>
 	<li><strong>pauseOnName</strong> <em>(String):</em> An optional name you can give a pause-on, so you can cancel it later.</li>
-	<li><strong>gapless</strong> <em>(Boolean):</em> If you're playing a single sound, that has to loop, you may notice that there's a tiny gap at the end of each loop. This fixes it by overlapping the sounds. Don't use it unless you need to, it's a little more overhead.</li>
-	<li><strong>gap</strong> <em>(Number):</em> The default gap when using the <span class="fakepre">gapless</span> option is 170ms, which is what works for MP3s that my MP3 converter spits out. If that's not quite right with your audio files, change it here, or change the default with the <span class="fakepre">setDefaultGap()</span> function.</li>
+	<li><strong>gapless</strong> <em>(Boolean):</em> If you're playing a single sound, that has to loop, you may notice that there's a tiny gap at the end of each loop. This fixes it by overlapping the sounds. It can only be applied to single sounds, not sequences. Don't use it unless you need to, it's a little more overhead.</li>
+	<li><strong>gap</strong> <em>(Number):</em> The default gap when using the <span class="fakepre">gapless</span> option is 200ms, which is what works for MP3s that my MP3 converter spits out. If that's not quite right with your audio files, change it here, or change the default with the <span class="fakepre">setDefaultGap()</span> function.</li>
 </ul>
 <p>So a much more complicated example might be:</p>
 <pre>
 soundManager.playSound("assets/testaudio.mp3", this, {
-		event: "TEST_AUDIO_PLAYED", 
+		onComplete: myOnCompleteFunction, 
 		channel: "sound_effects_channel", 
 		priority: 4, 
 		volume: 0.5,
 		loop: 2
 	});
 </pre>
-<p>Which would make the file, <em>testaudio.mp3</em>, load, then play twice at half volume on a channel called "sound_effects_channel", interrupting anything else on that channel with a priority lower than 4. 
+<p>Which would make the file, <em>testaudio.mp3</em>, load, then play twice at half volume on a channel called "sound_effects_channel", interrupting anything else on that channel with a priority lower than 4, and calling the <span class="fakepre">myOnCompleteFunction()</span> function when it's done. 
 
 
 
@@ -217,43 +205,40 @@ soundManager.playSound("assets/testaudio.mp3", this, {
 	</li>
 </ul>
 <p>
-	The exceptions to these rules come into play when you've set <span class="fakepre">samePriorityInterrupts</span> (in <span class="fakepre">getInstance()</span>) to <span class="fakepre">false</span>, or when it's the exact same sound file, and 
-	<span class="fakepre">dontInterruptSelf</span> (in <span class="fakepre">playSound()</span>) is set to <span class="fakepre">true</span>. 
+	The exception to these rules come into play when you've set <span class="fakepre">dontInterruptSelf</span> (in <span class="fakepre">playSound()</span>) to <span class="fakepre">true</span>. 
+	In that case, if a sound is about to be interrupted, but the new sound is the exact same sound (by filename(s)), it won't interrupt. 
 </p>
 
 
 
 <h3>Single sounds, sound sequences, and delays in playSound()'s source (first) argument</h3>
+
 <p>The first argument sent to <span class="fakepre">playSound()</span> is very dynamic. The simplest example you've already seen is sending it a 
-string, the filename you want to play. If you want to play a sequence of sounds, in order, one after the other,
-you can send it an array:</p>
+string, the filename you want to play.</p>
 <pre>
-playSound(["filename1.mp3", "filename2.mp3", "filename3.mp3"]);
+playSound("filename.mp3", this);
 </pre>
-<p>Or if you want to build the sequence using some logic of your own, you might want to build the array separately:</p>
+<p>If you want to play a sequence of sounds, in order, one after the other, you can send it an array:</p>
 <pre>
-var seq = new Array();
-seq.push("filename1.mp3");
-var r = Math.random()*2;
-if (r > 1) {seq.push("filename2.mp3");} else {seq.push("filename3.mp3");}
-playSound(seq);
+playSound(["filename1.mp3", "filename2.mp3", "filename3.mp3"], this);
 </pre>
-<p>The above example would play <em>filename1.mp3</em>, then, using <span class="fakepre">Math.random()</span> to generate a random choice, it picks either <em>filename2.mp3</em> or <em>filename3.mp3</em> and play it.</p>
+<p class="important">
+	 Gaps between sounds have been temporarily removed from SoundManager. This functionality will be added back in soon. 
+</p>
 <p>So what if you want a pause between audio files within a sequence. Simple, just put a number in your sequence array, instead of a string.</p>
 <pre>
 playSound(["filename1.mp3", 500, "filename2.mp3", 500, "filename3.mp3"]);
 </pre>
 <p>The above example will play the three files in order, but will pause for half a second (500 milliseconds) between them.</p>
-<p><b>NOTE</b> that the use of a number for the first item in a sound sequence array is discouraged. We were using this for pause-ons (when a user hovers their mouse over
-a button for a while) to define the delay before the pause-on sound played. The problem was that when a sound was already playing on a channel, and you added a sound with
-a 5 second "pause-on" gap at the start, it cancelled the old sound long before the new sound would play. It got even more messy if you just brushed over a button and it
-cancelled the old sound in order to set up the new pause-on, and that new pause-on was never needed. Instead use <span class="fakepre">pauseOnTime</span>, which holds 
-the sound out of the queue for the given period.</p>
+
 
 
 
 
 <h3>Using the amplitude (aka volume) of a channel</h3>
+<p class="important">
+	 This function has been temporarily removed from SoundManager. It will be added back in soon.
+</p>
 <p>
 	Here at Primal Screen when we make games for kids usually we do proper lip-syncing, but sometimes (like when we make games for Sesame Street), we use
 	a simple lip-flap based on the amplitude of the sound channel. To do that with SoundManager you'll have to ask SoundManager for the value, since
@@ -309,8 +294,9 @@ var mySound = soundManager.playSound("filename.mp3");
 		<span class="fakepre">setVolume(0.8);</span><br>
 		Sets the default volume for all <em>new</em> sounds. 0 = mute, 1 = 100%. <b>Again, this is for everything in the app.</b>
 	</li>
-	<li>
+	<li class="important">
 		<span class="fakepre">adjustVolume(id, volume);</span><br>
+		This function has been temporarily removed from SoundManager. It will get added back in, in a later version. 
 		Sets the volume of a given sound, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
 	</li>
 	<li>
@@ -388,24 +374,13 @@ var mySound = soundManager.playSound("filename.mp3");
 		Opposite of <span class="fakepre">muteChannel()</span>.
 	</li>
 	<li>
-		<span class="fakepre">preload("filename", "MY_PRELOAD_EVENT");</span> or<br>
-		<span class="fakepre">preload(["filename1", "filename2"], "MY_PRELOAD_EVENT");</span><br>
-		Where second argument is a string, the name of the event that SoundManager dispatches when the files are preloaded.
+		<span class="fakepre">preload("filename", myPreloadCompleteFunction);</span> or<br>
+		<span class="fakepre">preload(["filename1", "filename2"], myPreloadCompleteFunction);</span><br>
+		Where second argument is a public function in the calling class which is called when the files are preloaded.
 	</li>
 </ul>
 
 <h3>Other helpful code snippets:</h3>
-<p>Listening for the end of a sound</p>
-<pre>
-soundManager.playSound("assets/testaudio.mp3", this, {event: "MY_SOUND_PLAYED"});
-soundManager.addEventListener("MY_SOUND_PLAYED", soundPlayedHandler);
-</pre>
-<p>Listening for a file/files to be preloaded</p>
-<pre>
-soundManager.preload("filename.mp3", "FILENAME_LOADED");
-soundManager.addEventListener("FILENAME_LOADED", soundLoadedHandler);
-function soundLoadedHandler(e) { /* executed when file is loaded */ }
-</pre>
 <p>Stopping a specific sound (you have to capture it's returned ID first)</p>
 <pre>
 var mySoundID = playSound("filename.mp3");
@@ -418,7 +393,17 @@ soundManager.playSound("voiceover.mp3", this, {channel: "vo"});
 soundManager.playSound("bang.mp3", this);
 soundManager.stopSoundsFrom(this);
 </pre>
-
+<p>Setting up a "Pause on". Makes the boing sound play if you leave your mouse over the button for 1000ms. If you move it out after the sound has started, it plays through.</p>
+<pre>
+button1.addEventListener(MouseEvent.ROLL_OVER, makePauseOn, false, 0, true);
+button1.addEventListener(MouseEvent.ROLL_OVER, killPauseOn, false, 0, true);
+function makePauseOn(e) {
+	soundManager.playSound("boing.mp3", this, {pauseOnTime: 1000, pauseOnName: "boing"});
+}
+function killPauseOn(e) {
+	soundManager.cancelPauseOn("boing");
+}
+</pre>
 
 
 
@@ -452,8 +437,6 @@ soundManager.stopSoundsFrom(this);
 	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 	THE SOFTWARE.</p>
-
-<p>BulkLoader is also MIT Licensed, see it's terms <a href="http://code.google.com/p/bulk-loader/">here</a>.</p>
 
 </div>
 
