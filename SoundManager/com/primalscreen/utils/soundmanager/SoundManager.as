@@ -44,7 +44,7 @@ package com.primalscreen.utils.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version:String = "beta 0.124";
+		private const version:String = "beta 0.125";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -523,7 +523,6 @@ package com.primalscreen.utils.soundmanager {
 			}
 			for (var i:String in theQueue) {
 				if (theQueue[i] === item) {
-					trace("Disposing of item: " + item.id);
 					delete(theQueue[i]);
 				}
 			}
