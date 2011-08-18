@@ -88,9 +88,20 @@
 
 
 <h2 style="margin-top:-20px;">Installation</h2>
+<p>
+	You'll notice that there are Actionscript classes from two separate companies in this download. The Primal Screen classes
+	are mine, I wrote them, and they're ope source, MIT licensed. The Greensock classes are from 
+	<a href="http://www.greensock.com"> Greensock</a> and <b>carry their own, separate 
+	<a href="http://www.greensock.com/licensing/">license model</a> that you must agree to before using SoundManager.</b> 
+</p>
 <p>Put the <span class="fakepre">com.primalscreen.utils.soundmanager.SoundManager</span> package and the Greensock 
 LoaderMax package files in your classpath. Keep the <span class="fakepre">com.primalscreen</span>... and 
 <span class="fakepre">com.greensock</span>... folder structures.</p>
+
+<p>
+	NOTE: I've only included a subset of Greensock's classes that are used by SoundManager. If you're using any of their 
+	other classes, just use your own full set of greensock classes.
+</p>
 
 <p>Then instantiate like this (it's a singleton, you can't just use <span class="fakepre">new SoundManager()</span>):</p>
 <pre>
