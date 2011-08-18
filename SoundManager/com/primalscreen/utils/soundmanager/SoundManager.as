@@ -44,7 +44,7 @@ package com.primalscreen.utils.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version:String = "beta 0.125";
+		private const version:String = "beta 0.126";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -120,7 +120,7 @@ package com.primalscreen.utils.soundmanager {
 				throw new Error("Error: Instantiation failed: Use SoundManager.getInstance() instead of new SoundManager()");
 			}
 			
-			trace("SoundManager "+version+" Instanciated");
+			trace("SoundManager "+version);
 		}
 		
 		
@@ -248,12 +248,15 @@ package com.primalscreen.utils.soundmanager {
 				item.loader = new MP3Loader(basepath + item.source, {autoPlay:false});
 				item.loadername = item.loader.name;
 				item.loader.addEventListener(LoaderEvent.COMPLETE, loadComplete, false, 0, true);
+				item.loader.addEventListener(LoaderEvent.ERROR, loadError, false, 0, true);
 			} else if (item.type == SMObject.SEQUENCE || item.type == SMObject.SEQUENCE_LOOP) {
-				item.loader = new LoaderMax({onComplete:loadComplete});
+				item.loader = new LoaderMax();
 				for (var i:String in item.source) {
 					if (item.source[i] is String) item.loader.append(new MP3Loader(basepath + item.source[i], {autoPlay:false}));
 				}
 				item.loadername = item.loader.name;
+				item.loader.addEventListener(LoaderEvent.COMPLETE, loadComplete, false, 0, true);
+				item.loader.addEventListener(LoaderEvent.ERROR, loadError, false, 0, true);
 			}
 			if (item.type == SMObject.SINGLE_LOOP_GAPLESS) {
 				item.altloader = new MP3Loader(basepath + item.source, {autoPlay:false});
@@ -293,6 +296,15 @@ package com.primalscreen.utils.soundmanager {
 						theQueue[i].status = SMObject.READY;
 						playItem(theQueue[i]);
 					}
+				}
+			}
+		}
+		
+		private function loadError(e) {
+			for (var i:String in theQueue) {
+				if (theQueue[i].loadername == e.target.name) {
+					if (verbosemode) {trace(traceprepend+"Removing Sound due to load failure: " + theQueue[i].source);};
+					disposeSound(theQueue[i]);
 				}
 			}
 		}
@@ -395,7 +407,6 @@ package com.primalscreen.utils.soundmanager {
 						if (item !== theQueue[i]) { // ignore self
 							if (theQueue[i].channel == item.channel) {
 								disposeSound(theQueue[i]);
-								delete(theQueue[i]);
 							}
 						}
 					}
@@ -405,7 +416,6 @@ package com.primalscreen.utils.soundmanager {
 					for (var j:String in theQueue) {
 						if (theQueue[j].channel == item) {
 							disposeSound(theQueue[j]);
-							delete(theQueue[j]);
 						}
 					}
 				}
