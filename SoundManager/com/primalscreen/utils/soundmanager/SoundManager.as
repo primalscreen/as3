@@ -44,7 +44,7 @@ package com.primalscreen.utils.soundmanager {
 	public class SoundManager extends EventDispatcher {
 		
 		
-		private const version:String = "beta 0.126";
+		private const version:String = "beta 0.127";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -542,6 +542,77 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		// ================ User Usable Functions other than playSound =====================
+		
+		public function soundStatus(soundID:Number) {
+			if (soundID is Number) {
+				for (var i:String in theQueue) {
+					if (theQueue[i].id == soundID) {
+						if (verbosemode >= 10) {trace(traceprepend+"soundStatus() found sound with id " + soundID + " has status: " + theQueue[i].status);};
+						return theQueue[i].status;
+					}
+				}
+			}
+			if (verbosemode >= 5) {trace(traceprepend+"Couldn't find sound with id: " + soundID);};
+			return false;
+		}
+		
+		public function isLoading(soundID:Number) {
+			if (soundID is Number) {
+				for (var i:String in theQueue) {
+					if (theQueue[i].id == soundID) {
+						if (verbosemode >= 10) {trace(traceprepend+"isLoading() found sound with id " + soundID + " has status: " + theQueue[i].status);};
+						if (theQueue[i].status == SMObject.LOADING) return true;
+						return false
+					}
+				}
+			}
+			if (verbosemode >= 5) {trace(traceprepend+"Couldn't find sound with id: " + soundID);};
+			return false;
+		}
+		
+		public function isPaused(soundID:Number) {
+			if (soundID is Number) {
+				for (var i:String in theQueue) {
+					if (theQueue[i].id == soundID) {
+						if (verbosemode >= 10) {trace(traceprepend+"isPaused() found sound with id " + soundID + " has status: " + theQueue[i].status);};
+						if (theQueue[i].status == SMObject.PAUSED) return true;
+						return false
+					}
+				}
+			}
+			if (verbosemode >= 5) {trace(traceprepend+"Couldn't find sound with id: " + soundID);};
+			return false;
+		}
+		
+		
+		public function isPlaying(soundID:Number) {
+			if (soundID is Number) {
+				for (var i:String in theQueue) {
+					if (theQueue[i].id == soundID) {
+						if (verbosemode >= 10) {trace(traceprepend+"isPlaying() found sound with id " + soundID + " has status: " + theQueue[i].status);};
+						if (theQueue[i].status == SMObject.PLAYING) return true;
+						return false
+					}
+				}
+			}
+			if (verbosemode >= 5) {trace(traceprepend+"Couldn't find sound with id: " + soundID);};
+			return false;
+		}
+		
+		public function exists(soundID:Number) {
+			if (soundID is Number) {
+				for (var i:String in theQueue) {
+					if (theQueue[i].id == soundID) {
+						return true;
+					}
+				}
+			}
+			if (verbosemode >= 5) {trace(traceprepend+"Couldn't find sound with id: " + soundID);};
+			return false;
+		}
+		
+		
+		
 		public function preload(source:*, onComplete:Function = null):void {
 			if (verbosemode >= 5) {trace(traceprepend+"Preloading: " + source);};
 			var preloader:LoaderMax = new LoaderMax({onComplete:onComplete});

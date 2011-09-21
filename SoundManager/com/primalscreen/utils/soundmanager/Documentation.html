@@ -311,6 +311,26 @@ var mySound = soundManager.playSound("filename.mp3");
 		Sets the volume of a given sound, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
 	</li>
 	<li>
+		<span class="fakepre">isPlaying(id);</span><br>
+		Checks whether a sound is playing, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
+	</li>
+	<li>
+		<span class="fakepre">isPaused(id);</span><br>
+		Checks whether a sound is paused, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
+	</li>
+	<li>
+		<span class="fakepre">isLoading(id);</span><br>
+		Checks whether a sound is loading, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
+	</li>
+	<li>
+		<span class="fakepre">soundStatus(id);</span><br>
+		Returns a string of a sound's status, or false if the sound doesn't exist, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
+	</li>
+	<li>
+		<span class="fakepre">exists(id);</span><br>
+		Returns a boolean of whether the sound (still) exists, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
+	</li>
+	<li>
 		<span class="fakepre">stopSound(id);</span><br>
 		Stops the selected sound by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
 	</li>
