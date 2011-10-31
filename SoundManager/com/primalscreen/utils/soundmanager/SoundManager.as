@@ -34,7 +34,7 @@ package com.primalscreen.utils.soundmanager {
 	import flash.net.LocalConnection;
 	
 	import com.primalscreen.utils.soundmanager.SMObject;
-	import com.bigspaceship.utils.Out;
+	//import com.bigspaceship.utils.Out;
 	
 	import com.greensock.*;
 	import com.greensock.events.LoaderEvent;
@@ -63,8 +63,8 @@ package com.primalscreen.utils.soundmanager {
 		public static function doTrace(str:String):void {
 			
 			// Alter this if you want to use your own output class
-			//trace(str);
-			Out.info(SoundManager, str);
+			trace(str);
+			//Out.info(SoundManager, str);
 		}
 		
 		public static function getInstance(options:Object = null):SoundManager {
