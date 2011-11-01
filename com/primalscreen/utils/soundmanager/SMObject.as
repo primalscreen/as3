@@ -2,7 +2,7 @@ package com.primalscreen.utils.soundmanager {
 	
 	/*
 	
-	Primal Screen Actionscript Sound Manager Class
+	Primal Screen Actionscript Classes
 	
 	The MIT License
 	
