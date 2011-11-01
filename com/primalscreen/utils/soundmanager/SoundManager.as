@@ -1,7 +1,7 @@
 package com.primalscreen.utils.soundmanager {
 	/*
 	
-	Primal Screen Actionscript Classes
+	Primal Screen Actionscript Sound Manager Class
 	
 	The MIT License
 	
@@ -44,7 +44,7 @@ package com.primalscreen.utils.soundmanager {
 	
 	public class SoundManager extends EventDispatcher {
 				
-		private const version:String = "beta 0.129";
+		private const version:String = "beta 0.130";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -352,6 +352,10 @@ package com.primalscreen.utils.soundmanager {
 			item.gaplessTimer = setTimeout(gapless, item.gaplessTimerLength, item);
 		}
 		
+		
+		
+		
+		
 		private function playItem(item) {
 			item.status = SMObject.PLAYING;
 			
@@ -362,21 +366,46 @@ package com.primalscreen.utils.soundmanager {
 			}
 			
 			if (item.type == SMObject.SINGLE || item.type == SMObject.SINGLE_LOOP || item.type == SMObject.SINGLE_LOOP_GAPLESS) {
+			
 				item.loader.volume = item.volume;
 				item.loader.playSound();
 				item.loader.gotoSoundTime(0, true);
 				item.loader.removeEventListener(MP3Loader.SOUND_COMPLETE, soundComplete);
 				item.loader.addEventListener(MP3Loader.SOUND_COMPLETE, soundComplete, false, 0, true);
+			
 			} else if (item.type == SMObject.SEQUENCE || item.type == SMObject.SEQUENCE_LOOP) {
+			
 				if (!item.sequencePosition) item.sequencePosition = 0;
-				item.loadername = item.loader.getChildren()[item.sequencePosition].name;
-				item.loader.getChildren()[item.sequencePosition].volume = item.volume;
-				item.loader.getChildren()[item.sequencePosition].playSound();
-				item.loader.getChildren()[item.sequencePosition].gotoSoundTime(0, true);
-				item.loader.getChildren()[item.sequencePosition].removeEventListener(MP3Loader.SOUND_COMPLETE, soundComplete);
-				item.loader.getChildren()[item.sequencePosition].addEventListener(MP3Loader.SOUND_COMPLETE, soundComplete, false, 0, true);
+				
+				trace("next in source: " + item.source[item.sequencePosition]);
+				
+				if (item.source[item.sequencePosition] is Number) {
+					
+					item.status = SMObject.WAITING;
+					var t = item.source[item.sequencePosition]/1000;
+					TweenMax.delayedCall(t, function() {
+						item.status = SMObject.READY;
+						checkItemStatus(item);
+					});
+					
+				} else if (item.source[item.sequencePosition] is String) {
+					
+					item.loadername = item.loader.getLoader(item.source[item.sequencePosition]).name;
+					item.loader.getLoader(item.source[item.sequencePosition]).volume = item.volume;
+					item.loader.getLoader(item.source[item.sequencePosition]).playSound();
+					item.loader.getLoader(item.source[item.sequencePosition]).gotoSoundTime(0, true);
+					item.loader.getLoader(item.source[item.sequencePosition]).removeEventListener(MP3Loader.SOUND_COMPLETE, soundComplete);
+					item.loader.getLoader(item.source[item.sequencePosition]).addEventListener(MP3Loader.SOUND_COMPLETE, soundComplete, false, 0, true);
+				
+				}
+				
 			}
 		}
+		
+		
+		
+		
+		
 		
 		private function shouldSoundPlay(item) {
 			
@@ -435,7 +464,7 @@ package com.primalscreen.utils.soundmanager {
 			}
 		}
 		
-		public function soundComplete(e) {
+		public function soundComplete(e = null) {
 			for (var i:String in theQueue) {
 				if (theQueue[i].loadername == e.target.name) {
 					theQueue[i].status = SMObject.PLAYED;
@@ -443,6 +472,8 @@ package com.primalscreen.utils.soundmanager {
 				}
 			}
 		}
+		
+		
 		
 		public function checkItemStatus(item) {
 			var finished = false;

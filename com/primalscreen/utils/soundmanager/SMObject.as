@@ -2,7 +2,7 @@ package com.primalscreen.utils.soundmanager {
 	
 	/*
 	
-	Primal Screen Actionscript Classes
+	Primal Screen Actionscript Sound Manager Class
 	
 	The MIT License
 	
@@ -37,6 +37,7 @@ package com.primalscreen.utils.soundmanager {
 		public static const PAUSEON:String 			= "pauseon";
 		public static const PAUSEONREADY:String 	= "pauseonready";
 		public static const READY:String 			= "ready";
+		public static const WAITING:String 			= "waiting";
 		public static const GAPLESSWAITING:String 	= "gaplesswaiting";
 		public static const PLAYING:String 			= "playing";
 		public static const PAUSED:String 			= "paused";
