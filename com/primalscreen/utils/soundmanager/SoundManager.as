@@ -34,7 +34,7 @@ package com.primalscreen.utils.soundmanager {
 	import flash.net.LocalConnection;
 	
 	import com.primalscreen.utils.soundmanager.SMObject;
-	//import com.bigspaceship.utils.Out;
+	import com.primalscreen.utils.*;
 	
 	import com.greensock.*;
 	import com.greensock.events.LoaderEvent;
@@ -44,7 +44,7 @@ package com.primalscreen.utils.soundmanager {
 	
 	public class SoundManager extends EventDispatcher {
 				
-		private const version:String = "beta 0.130";
+		private const version:String = "beta 0.132";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -64,7 +64,7 @@ package com.primalscreen.utils.soundmanager {
 			
 			// Alter this if you want to use your own output class
 			trace(str);
-			//Out.info(SoundManager, str);
+			//Mic.say(str, SoundManager);
 		}
 		
 		public static function getInstance(options:Object = null):SoundManager {
@@ -190,6 +190,8 @@ package com.primalscreen.utils.soundmanager {
 				}
 			}
 			
+			doTrace("Decided on type: " + item.type);
+			
 			// give defaults
 			item.priority = 1;
 			item.volume = defaultVolume;
@@ -254,18 +256,14 @@ package com.primalscreen.utils.soundmanager {
 		
 		private function loadItem(item) {
 			if (item.type == SMObject.SINGLE || item.type == SMObject.SINGLE_LOOP || item.type == SMObject.SINGLE_LOOP_GAPLESS) {
-				item.loader = new MP3Loader(basepath + item.source, {autoPlay:false});
+				item.loader = new MP3Loader(basepath + item.source, {autoPlay:false, onComplete: loadComplete, onError: loadError});
 				item.loadername = item.loader.name;
-				item.loader.addEventListener(LoaderEvent.COMPLETE, loadComplete, false, 0, true);
-				item.loader.addEventListener(LoaderEvent.ERROR, loadError, false, 0, true);
 			} else if (item.type == SMObject.SEQUENCE || item.type == SMObject.SEQUENCE_LOOP) {
-				item.loader = new LoaderMax();
+				item.loader = new LoaderMax({onComplete: loadComplete, onError: loadError});
 				for (var i:String in item.source) {
 					if (item.source[i] is String) item.loader.append(new MP3Loader(basepath + item.source[i], {autoPlay:false}));
 				}
 				item.loadername = item.loader.name;
-				item.loader.addEventListener(LoaderEvent.COMPLETE, loadComplete, false, 0, true);
-				item.loader.addEventListener(LoaderEvent.ERROR, loadError, false, 0, true);
 			}
 			if (item.type == SMObject.SINGLE_LOOP_GAPLESS) {
 				item.altloader = new MP3Loader(basepath + item.source, {autoPlay:false});
@@ -292,7 +290,6 @@ package com.primalscreen.utils.soundmanager {
 		private function loadComplete(e) {
 			for (var i:String in theQueue) {
 				if (theQueue[i].loadername == e.target.name) {
-					
 					if (theQueue[i].status == SMObject.DISPOSED ||
 						theQueue[i].status == SMObject.DISPOSABLE) return; // item was loading when it was stopped
 					
@@ -366,7 +363,7 @@ package com.primalscreen.utils.soundmanager {
 			}
 			
 			if (item.type == SMObject.SINGLE || item.type == SMObject.SINGLE_LOOP || item.type == SMObject.SINGLE_LOOP_GAPLESS) {
-			
+							
 				item.loader.volume = item.volume;
 				item.loader.playSound();
 				item.loader.gotoSoundTime(0, true);
@@ -374,10 +371,10 @@ package com.primalscreen.utils.soundmanager {
 				item.loader.addEventListener(MP3Loader.SOUND_COMPLETE, soundComplete, false, 0, true);
 			
 			} else if (item.type == SMObject.SEQUENCE || item.type == SMObject.SEQUENCE_LOOP) {
-			
+								
 				if (!item.sequencePosition) item.sequencePosition = 0;
 				
-				trace("next in source: " + item.source[item.sequencePosition]);
+				//doTrace("Playing item in seq: " + item.source[item.sequencePosition]);
 				
 				if (item.source[item.sequencePosition] is Number) {
 					
@@ -390,13 +387,21 @@ package com.primalscreen.utils.soundmanager {
 					
 				} else if (item.source[item.sequencePosition] is String) {
 					
-					item.loadername = item.loader.getLoader(item.source[item.sequencePosition]).name;
-					item.loader.getLoader(item.source[item.sequencePosition]).volume = item.volume;
-					item.loader.getLoader(item.source[item.sequencePosition]).playSound();
-					item.loader.getLoader(item.source[item.sequencePosition]).gotoSoundTime(0, true);
-					item.loader.getLoader(item.source[item.sequencePosition]).removeEventListener(MP3Loader.SOUND_COMPLETE, soundComplete);
-					item.loader.getLoader(item.source[item.sequencePosition]).addEventListener(MP3Loader.SOUND_COMPLETE, soundComplete, false, 0, true);
-				
+					var theLoader = item.loader.getLoader(basepath + item.source[item.sequencePosition]);
+					
+					if (theLoader) {
+						item.loadername = theLoader.name;
+						theLoader.volume = item.volume;
+						theLoader.playSound();
+						theLoader.gotoSoundTime(0, true);
+						theLoader.removeEventListener(MP3Loader.SOUND_COMPLETE, soundComplete);
+						theLoader.addEventListener(MP3Loader.SOUND_COMPLETE, soundComplete, false, 0, true);
+					} else {
+						if (verbosemode) {
+							doTrace(traceprepend+"Something went wrong finding the loaders for this sequence: " + item.source);
+						}
+					}
+					
 				}
 				
 			}
