@@ -81,7 +81,7 @@ package com.primalscreen.utils {
 		
 		
 		/*
-		*	Turns of whisper calls
+		*	Turns off whisper calls
 		*/
 		
 		public static function ignoreWhispers() {
@@ -89,7 +89,7 @@ package com.primalscreen.utils {
 		}
 		
 		/*
-		*	Turns of whisper, and say calls
+		*	Turns off whisper, and say calls
 		*/
 		
 		public static function ignoreSays() {ignoreSpeech();};
@@ -99,7 +99,7 @@ package com.primalscreen.utils {
 		}
 		
 		/*
-		*	Turns of whisper, say, and yell calls
+		*	Turns off whisper, say, and yell calls
 		*/
 		
 		public static function ignoreYells() {
@@ -109,7 +109,7 @@ package com.primalscreen.utils {
 		}
 		
 		/*
-		*	Turns of all output calls
+		*	Turns off all output calls
 		*/
 		
 		public static function ignoreAll() {ignoreScreams();};
