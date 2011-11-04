@@ -44,7 +44,7 @@ package com.primalscreen.utils.soundmanager {
 	
 	public class SoundManager extends EventDispatcher {
 				
-		private const version:String = "beta 0.132";
+		private const version:String = "beta 0.134";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -163,7 +163,7 @@ package com.primalscreen.utils.soundmanager {
 			
 			item.source = source;
 			
-			item.parent =  "";
+			item.parent = "";
 			if (parent) {
 				item.parent = parent.toString();
 				parent = null;
@@ -190,7 +190,6 @@ package com.primalscreen.utils.soundmanager {
 				}
 			}
 			
-			doTrace("Decided on type: " + item.type);
 			
 			// give defaults
 			item.priority = 1;
