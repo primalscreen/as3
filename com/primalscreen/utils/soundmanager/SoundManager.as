@@ -44,7 +44,7 @@ package com.primalscreen.utils.soundmanager {
 	
 	public class SoundManager extends EventDispatcher {
 				
-		private const version:String = "beta 0.134";
+		private const version:String = "beta 0.135";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -63,8 +63,8 @@ package com.primalscreen.utils.soundmanager {
 		public static function doTrace(str:String):void {
 			
 			// Alter this if you want to use your own output class
-			trace(str);
-			//Mic.say(str, SoundManager);
+			//trace(str);
+			Mic.say(str, SoundManager);
 		}
 		
 		public static function getInstance(options:Object = null):SoundManager {
@@ -106,6 +106,8 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		// state, objects, stuff
+		private var muted:Boolean = false; // this is a global mute.
+		
 		private var theQueue:Array = new Array();
 		
 		private var pauseOnQueue:Array = new Array();
@@ -189,11 +191,11 @@ package com.primalscreen.utils.soundmanager {
 					item.type = SMObject.SEQUENCE;
 				}
 			}
-			
-			
+						
 			// give defaults
 			item.priority = 1;
 			item.volume = defaultVolume;
+			item.originalvolume = defaultVolume;
 			item.dontInterruptSelf = false;
 			item.pauseOnTime = 0;
 			item.pauseOnName = "";
@@ -207,6 +209,7 @@ package com.primalscreen.utils.soundmanager {
 				if (options.hasOwnProperty("priority")) 			item.priority = options.priority;
 				if (options.hasOwnProperty("dontInterruptSelf")) 	item.dontInterruptSelf = options.dontInterruptSelf;
 				if (options.hasOwnProperty("volume")) 				item.volume = options.volume;
+				if (options.hasOwnProperty("volume")) 				item.originalvolume = options.volume;
 				if (options.hasOwnProperty("loop")) 				item.loop = options.loop;
 				if (options.hasOwnProperty("pauseOnTime")) 			item.pauseOnTime = options.pauseOnTime;
 				if (options.hasOwnProperty("pauseOnName")) 			item.pauseOnName = options.pauseOnName;
@@ -216,6 +219,8 @@ package com.primalscreen.utils.soundmanager {
 					doTrace("WARNING: the event option has been deprecated in favor of an onComplete option, which refers to an public function in the calling class.");
 				}
 			}
+			
+			if (muted) item.volume = 0;
 			
 			theQueue.push(item);
 			checkQueue();
@@ -725,41 +730,6 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		
-		public function muteSound(i:*):void {
-			if (i is Number) {
-				if (verbosemode >= 10) {doTrace(traceprepend+"Muting: " + i);};
-				for (var j:String in theQueue) {
-					if (theQueue[j].id == i) {
-						i = theQueue[j];
-					}
-				}
-			}
-			if (!i.originalvolume) i.originalvolume = i.volume;
-			i.volume = 0;
-			if (i.type == SMObject.SEQUENCE || i.type == SMObject.SEQUENCE_LOOP) {
-				i.loader.getChildren()[i.sequencePosition].volume = 0;
-			} else {
-				i.loader.volume = 0;
-			}
-		}
-		public function unmuteSound(i:*):void {
-			if (i is Number) {
-				if (verbosemode >= 10) {doTrace(traceprepend+"Unmuting: " + i);};
-				for (var j:String in theQueue) {
-					if (theQueue[j].id == i) {
-						i = theQueue[j];
-					}
-				}
-			}
-			i.volume = i.originalvolume
-			if (i.type == SMObject.SEQUENCE || i.type == SMObject.SEQUENCE_LOOP) {
-				i.loader.getChildren()[i.sequencePosition].volume = i.volume;
-			} else {
-				i.loader.volume = i.volume;
-			}
-		}
-		
-		
 		
 		public function resumeAllSounds():void {
 			if (verbosemode >= 10) {doTrace(traceprepend+"Resume All Sounds");};
@@ -890,7 +860,45 @@ package com.primalscreen.utils.soundmanager {
 			}
 		}
 		
-			
+		
+		
+		public function muteSound(i:*):void {
+			if (i is Number) {
+				if (verbosemode >= 10) {doTrace(traceprepend+"Muting: " + i);};
+				for (var j:String in theQueue) {
+					if (theQueue[j].id == i) {
+						i = theQueue[j];
+					}
+				}
+			}
+			if (!i.originalvolume) i.originalvolume = i.volume;
+			i.volume = 0;
+			if (i.type == SMObject.SEQUENCE || i.type == SMObject.SEQUENCE_LOOP) {
+				i.loader.getChildren()[i.sequencePosition].volume = 0;
+			} else {
+				i.loader.volume = 0;
+			}
+		}
+		
+		public function unmuteSound(i:*):void {
+			if (i is Number) {
+				if (verbosemode >= 10) {doTrace(traceprepend+"Unmuting: " + i);};
+				for (var j:String in theQueue) {
+					if (theQueue[j].id == i) {
+						i = theQueue[j];
+					}
+				}
+			}
+			i.volume = i.originalvolume
+			if (i.type == SMObject.SEQUENCE || i.type == SMObject.SEQUENCE_LOOP) {
+				i.loader.getChildren()[i.sequencePosition].volume = i.volume;
+			} else {
+				i.loader.volume = i.volume;
+			}
+		}
+
+
+
 		
 		public function muteChannel(channel:String = null):void {
 			
@@ -945,6 +953,28 @@ package com.primalscreen.utils.soundmanager {
 			if (verbosemode) {doTrace(traceprepend+"Default overlap between new 'gapless' sounds set to: " + gap);};
 			this.defaultGap = gap;
 		}
+		
+		
+		public function mute() {
+			if (verbosemode >= 10) {doTrace(traceprepend+"Muting all");};
+			muted = true;
+			for (var i:String in theQueue) {
+				var s = theQueue[i];
+				muteSound(s);
+			}
+		}
+		
+		public function unmute() {
+			if (verbosemode >= 10) {doTrace(traceprepend+"Unmuting all");};
+			muted = false;
+			for (var i:String in theQueue) {
+				var s = theQueue[i];
+				unmuteSound(s);
+			}
+		}
+		
+		
+		
 		
 		
 		
