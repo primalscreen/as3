@@ -44,7 +44,7 @@ package com.primalscreen.utils.soundmanager {
 	
 	public class SoundManager extends EventDispatcher {
 				
-		private const version:String = "beta 0.135";
+		private const version:String = "beta 0.142";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -163,8 +163,9 @@ package com.primalscreen.utils.soundmanager {
 			item.id = soundIDCounter++;
 			item.status = SMObject.NEW;
 			
+			if (source is Array && source.length == 1) source = source[0];
 			item.source = source;
-			
+						
 			item.parent = "";
 			if (parent) {
 				item.parent = parent.toString();
@@ -260,17 +261,17 @@ package com.primalscreen.utils.soundmanager {
 		
 		private function loadItem(item) {
 			if (item.type == SMObject.SINGLE || item.type == SMObject.SINGLE_LOOP || item.type == SMObject.SINGLE_LOOP_GAPLESS) {
-				item.loader = new MP3Loader(basepath + item.source, {autoPlay:false, onComplete: loadComplete, onError: loadError});
+				item.loader = new MP3Loader(basepath + item.source, {auditSize: false, autoPlay:false, onComplete: loadComplete, onError: loadError});
 				item.loadername = item.loader.name;
 			} else if (item.type == SMObject.SEQUENCE || item.type == SMObject.SEQUENCE_LOOP) {
 				item.loader = new LoaderMax({onComplete: loadComplete, onError: loadError});
 				for (var i:String in item.source) {
-					if (item.source[i] is String) item.loader.append(new MP3Loader(basepath + item.source[i], {autoPlay:false}));
+					if (item.source[i] is String) item.loader.append(new MP3Loader(basepath + item.source[i], {auditSize: false, autoPlay:false}));
 				}
 				item.loadername = item.loader.name;
 			}
 			if (item.type == SMObject.SINGLE_LOOP_GAPLESS) {
-				item.altloader = new MP3Loader(basepath + item.source, {autoPlay:false});
+				item.altloader = new MP3Loader(basepath + item.source, {auditSize: false, autoPlay:false});
 				item.altloadername = item.altloader.name;
 				item.altloader.load();
 			}
@@ -304,6 +305,7 @@ package com.primalscreen.utils.soundmanager {
 							theQueue[i].status = SMObject.PAUSEONREADY;
 						}
 					} else if (theQueue[i].type == SMObject.SINGLE_LOOP_GAPLESS) {
+						theQueue[i].status = SMObject.READY;
 						theQueue[i].gaplessFirstPhase = true;
 						gapless(theQueue[i]);
 					} else {
@@ -333,13 +335,17 @@ package com.primalscreen.utils.soundmanager {
 				disposeSound(item);
 				return;
 			}
-			
+						
 			if (item.gaplessFirstPhase) {
 				item.loader.volume = item.volume;
-				item.loader.gotoSoundTime(0, true);
+				try {item.loader.gotoSoundTime(0, true);} catch (e) {
+					doTrace(traceprepend+"Invalid sound error on file: "+item.source);
+				}
 			} else {
 				item.altloader.volume = item.volume;
-				item.altloader.gotoSoundTime(0, true);
+				try {item.altloader.gotoSoundTime(0, true);} catch (e) {
+					doTrace(traceprepend+"Invalid sound error on file: "+item.source);
+				}
 			}
 			item.gaplessFirstPhase = !item.gaplessFirstPhase;
 			
@@ -349,8 +355,8 @@ package com.primalscreen.utils.soundmanager {
 			if (!item.gaplessTimerLength) {
 				item.gaplessTimerLength = Math.floor(item.loader.duration*1000) - gap;
 			}
-			//doTrace("l: "+item.gaplessTimerLength);
-			item.gaplessTimer = setTimeout(gapless, item.gaplessTimerLength, item);
+			
+			TweenMax.delayedCall(item.gaplessTimerLength/1000, gapless, [item]);
 		}
 		
 		
@@ -369,8 +375,13 @@ package com.primalscreen.utils.soundmanager {
 			if (item.type == SMObject.SINGLE || item.type == SMObject.SINGLE_LOOP || item.type == SMObject.SINGLE_LOOP_GAPLESS) {
 							
 				item.loader.volume = item.volume;
-				item.loader.playSound();
-				item.loader.gotoSoundTime(0, true);
+				
+				try {
+					item.loader.playSound();
+					item.loader.gotoSoundTime(0, true);
+				} catch (e) {
+					doTrace(traceprepend+"Invalid sound error on file: "+item.source);
+				}
 				item.loader.removeEventListener(MP3Loader.SOUND_COMPLETE, soundComplete);
 				item.loader.addEventListener(MP3Loader.SOUND_COMPLETE, soundComplete, false, 0, true);
 			
@@ -392,12 +403,17 @@ package com.primalscreen.utils.soundmanager {
 				} else if (item.source[item.sequencePosition] is String) {
 					
 					var theLoader = item.loader.getLoader(basepath + item.source[item.sequencePosition]);
+					Mic.say("theLoader: " + theLoader, this);
 					
 					if (theLoader) {
 						item.loadername = theLoader.name;
 						theLoader.volume = item.volume;
-						theLoader.playSound();
-						theLoader.gotoSoundTime(0, true);
+						try {
+							theLoader.playSound();
+							theLoader.gotoSoundTime(0, true);
+						} catch (e) {
+							doTrace(traceprepend+"Invalid sound error on file: "+item.source[item.sequencePosition]);
+						}
 						theLoader.removeEventListener(MP3Loader.SOUND_COMPLETE, soundComplete);
 						theLoader.addEventListener(MP3Loader.SOUND_COMPLETE, soundComplete, false, 0, true);
 					} else {
@@ -412,6 +428,15 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		
+		
+		public function soundComplete(e = null) {
+			for (var i:String in theQueue) {
+				if (theQueue[i].loadername == e.target.name) {
+					theQueue[i].status = SMObject.PLAYED;
+					checkItemStatus(theQueue[i]);
+				}
+			}
+		}
 		
 		
 		
@@ -451,6 +476,8 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		
+		
+		
 		private function killOtherSoundsOnChannel(item:*) {
 			if (item is SMObject) {
 				if (item.channel) {
@@ -469,15 +496,6 @@ package com.primalscreen.utils.soundmanager {
 							disposeSound(theQueue[j]);
 						}
 					}
-				}
-			}
-		}
-		
-		public function soundComplete(e = null) {
-			for (var i:String in theQueue) {
-				if (theQueue[i].loadername == e.target.name) {
-					theQueue[i].status = SMObject.PLAYED;
-					checkItemStatus(theQueue[i]);
 				}
 			}
 		}
@@ -671,7 +689,7 @@ package com.primalscreen.utils.soundmanager {
 			var preloader:LoaderMax = new LoaderMax({onComplete:onComplete});
 			if (source is Array) {
 				for (var x:String in source){
-					preloader.append(new MP3Loader(basepath + source[x], {autoPlay:false}));
+					if (source[x] is String) preloader.append(new MP3Loader(basepath + source[x], {autoPlay:false}));
 				};
 			} else {
 				preloader.append(new MP3Loader(basepath + source, {autoPlay:false}));
@@ -692,9 +710,17 @@ package com.primalscreen.utils.soundmanager {
 			if (i.status == SMObject.PAUSED) {
 				i.status = SMObject.PLAYING;
 				if (i.type == SMObject.SEQUENCE || i.type == SMObject.SEQUENCE_LOOP) {
-					i.loader.getChildren()[i.sequencePosition].playSound();
+					try {
+						i.loader.getChildren()[i.sequencePosition].playSound();
+					} catch (e) {
+						doTrace(traceprepend+"Invalid sound error on file: "+i.source);
+					}
 				} else {
-					i.loader.playSound();
+					try {
+						i.loader.playSound();
+					} catch (e) {
+						doTrace(traceprepend+"Invalid sound error on file: "+i.source);
+					}
 				}
 			}
 		}
@@ -819,10 +845,14 @@ package com.primalscreen.utils.soundmanager {
 				if (theQueue[i].parent == parentName) {
 					if (theQueue[i].status == SMObject.PAUSED) {
 						theQueue[i].status = SMObject.PLAYING;
-						if (theQueue[i].type == SMObject.SEQUENCE || theQueue[i].type == SMObject.SEQUENCE_LOOP) {
-							theQueue[i].loader.getChildren()[theQueue[i].sequencePosition].playSound();
-						} else {
-							theQueue[i].loader.playSound();
+						try {
+							if (theQueue[i].type == SMObject.SEQUENCE || theQueue[i].type == SMObject.SEQUENCE_LOOP) {
+								theQueue[i].loader.getChildren()[theQueue[i].sequencePosition].playSound();
+							} else {
+								theQueue[i].loader.playSound();
+							}
+						} catch (e) {
+							doTrace(traceprepend+"Invalid sound error on file: "+theQueue[i].source);
 						}
 					}
 				}
@@ -838,10 +868,14 @@ package com.primalscreen.utils.soundmanager {
 				if (theQueue[i].parent == parentName) {
 					if (theQueue[i].status == SMObject.PLAYING) {
 						theQueue[i].status = SMObject.PAUSED;
-						if (theQueue[i].type == SMObject.SEQUENCE || theQueue[i].type == SMObject.SEQUENCE_LOOP) {
-							theQueue[i].loader.getChildren()[theQueue[i].sequencePosition].pauseSound();
-						} else {
-							theQueue[i].loader.pauseSound();
+						try {
+							if (theQueue[i].type == SMObject.SEQUENCE || theQueue[i].type == SMObject.SEQUENCE_LOOP) {
+								theQueue[i].loader.getChildren()[theQueue[i].sequencePosition].pauseSound();
+							} else {
+								theQueue[i].loader.pauseSound();
+							}
+						} catch (e) {
+							doTrace(traceprepend+"Invalid sound error on file: "+theQueue[i].source);
 						}
 					}
 				}
@@ -877,6 +911,9 @@ package com.primalscreen.utils.soundmanager {
 				i.loader.getChildren()[i.sequencePosition].volume = 0;
 			} else {
 				i.loader.volume = 0;
+				if (i.altloader) {
+					i.altloader.volume = 0;
+				}
 			}
 		}
 		
@@ -894,6 +931,7 @@ package com.primalscreen.utils.soundmanager {
 				i.loader.getChildren()[i.sequencePosition].volume = i.volume;
 			} else {
 				i.loader.volume = i.volume;
+				if (i.altloader) i.altloader.volume = i.volume;
 			}
 		}
 

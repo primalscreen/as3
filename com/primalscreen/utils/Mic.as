@@ -29,24 +29,55 @@ package com.primalscreen.utils {
 	*/
 	
 	import flash.utils.getQualifiedClassName;
-	
+	import flash.utils.setInterval;
 	
 		
 	public class Mic {
 				
 		
-		private const version:String = "beta 0.2";
+		private const version:String = "beta 0.5";
 		
-		private static const MAX_CLASSNAME_LENGTH = 16;
+		private static const MAX_CLASSNAME_LENGTH = 18;
 		
-		private static var ignoringWhispers 	= false;
-		private static var ignoringSpeech 		= false;
-		private static var ignoringYells 		= false;
-		private static var ignoringScreams 		= false;
+		private static var ignoringWhispers:Boolean	= false;
+		private static var ignoringSpeech:Boolean 	= false;
+		private static var ignoringYells:Boolean 	= false;
+		private static var ignoringScreams:Boolean 	= false;
 		
-		private static var ignoringOrigins 		= [];
+		private static var ignoringOrigins:Array	= [];
 		
 		private static var spotlightTarget;
+		
+		private static var timerOn:Boolean			= false;
+		private static var lastTimeShown:Number		= -1;
+		private static var currentTime:Number		= 0;
+		
+		private static var incerementerInterval:int;
+		
+		
+		
+		/*
+		*	Tells Mic to show the timestamp before each trace
+		*/
+		public static function showTimer() {
+			timerOn = true;
+			if (!incerementerInterval) incerementerInterval = setInterval(incrementTime, 1000);
+		}
+		
+		/*
+		*	Tells Mic not to show the timestamp before each trace
+		*/
+		public static function hideTimer() {
+			timerOn = false;
+		}
+		
+		
+		/*
+		*	Tells Mic to reset the timer back to 0 seconds
+		*/
+		public static function resetTimer() {
+			currentTime = 0;
+		}
 		
 		
 		
@@ -55,14 +86,9 @@ package com.primalscreen.utils {
 		*	focus/spotlight both keep everything BUT the selected class's output from showing
 		*/
 		
-		public static function focus(what) {spotlight(what);};
-		public static function spotlight(what) {
-			var o;
-			if (what is String) {
-				o = what;
-			} else {
-				o = flash.utils.getQualifiedClassName(what);
-			}
+		public static function focus(origin) {spotlight(origin);};
+		public static function spotlight(origin) {
+			var o = convertToName(origin);
 			spotlightTarget = o;	
 		}
 		
@@ -71,10 +97,10 @@ package com.primalscreen.utils {
 		*	unfocus/unspotlight reverse any focus/spotlight calls
 		*/
 		
-		public function unfocus() {
+		public static function unfocus() {
 			spotlightTarget = null;
 		}
-		public function unspotlight() {
+		public static function unspotlight() {
 			spotlightTarget = null;
 		}
 		
@@ -128,14 +154,7 @@ package com.primalscreen.utils {
 		
 		public static function ignore(origin) {silence(origin)};
 		public static function silence(origin) {
-			var o;
-			if (origin is String) {
-				o = origin;
-			} else {
-				o = flash.utils.getQualifiedClassName(origin);
-			}
-			var pieces = o.split("::")
-			o = pieces[pieces.length-1];
+			var o = convertToName(origin);
 			if (ignoringOrigins.indexOf(o) == -1) {
 				ignoringOrigins.push(o);
 			};			
@@ -148,14 +167,7 @@ package com.primalscreen.utils {
 		
 		public static function unignore(origin) {unsilence(origin)};
 		public static function unsilence(origin) {
-			var o;
-			if (origin is String) {
-				o = origin;
-			} else {
-				o = flash.utils.getQualifiedClassName(origin);
-			}
-			var pieces = o.split("::")
-			o = pieces[pieces.length-1];
+			var o = convertToName(origin);
 			if (ignoringOrigins.indexOf(o) == -1) {
 				ignoringOrigins[ignoringOrigins.indexOf(o)] = null;
 			};			
@@ -166,79 +178,107 @@ package com.primalscreen.utils {
 		
 		
 		
+		
+		
+		
 		/*
 		*	Outputs
 		*/
 		
+		// Shows the timestamp, it it has changed since the last timestamp
+		private static function traceTime() {
+			if (lastTimeShown != currentTime) {
+				lastTimeShown = currentTime;
+				trace();
+				trace("                               " + currentTime + " seconds...");
+			}
+		}
+		
+		
+		private static function incrementTime() {
+			currentTime++;
+		}
+		
+		
+		
 		// almost never needed. super debug pulling out my hair mode
-		public static function whisper(msg, origin) {
+		public static function whisper(msg, origin, ...rest) {
 			if (ignoringWhispers) return;
-			var o = flash.utils.getQualifiedClassName(origin);
+			var o = convertToName(origin);
 			if (ignoringOrigins.indexOf(o) > -1) return;
 			if (spotlightTarget && spotlightTarget != o) return;			
 			
-			var pieces = o.split("::")
-			o = pieces[pieces.length-1];
-			
-			o = o.substr(0, MAX_CLASSNAME_LENGTH) + " whispered:  ";
-			while (o.length < MAX_CLASSNAME_LENGTH + 13) {
-				o = " " + o;
+			traceTime();
+			trace("" + o + " whispered:  " + msg);
+			if (rest.length) {
+				for (var r in rest) trace("                         ...:  "+rest[r]);
+				trace();
 			}
-			trace(o + msg);
 		}
 		
 		// for use during active development, when you want to know whats going on in the app
-		public static function say(msg, origin) {
+		public static function say(msg, origin, ...rest) {
 			if (ignoringSpeech) return;
-			var o = flash.utils.getQualifiedClassName(origin);
+			var o = convertToName(origin);
 			if (ignoringOrigins.indexOf(o) > -1) return;
 			if (spotlightTarget && spotlightTarget != o) return;		
 			
-			var pieces = o.split("::")
-			o = pieces[pieces.length-1];
-			
-			o = o.substr(0, MAX_CLASSNAME_LENGTH) + " said:  ";
-			while (o.length < MAX_CLASSNAME_LENGTH + 13) {
-				o = " " + o;
+			traceTime();
+			trace("     " + o + " said:  " + msg);
+			if (rest.length) {
+				for (var r in rest) trace("                         ...:  "+rest[r]);
+				trace();
 			}
-			trace(o + msg);
 		}
 		
 		// for use when testing, just the big picture
-		public static function yell(msg, origin) {
+		public static function yell(msg, origin, ...rest) {
 			if (ignoringYells) return;
-			var o = flash.utils.getQualifiedClassName(origin);
+			var o = convertToName(origin);
 			if (ignoringOrigins.indexOf(o) > -1) return;
 			if (spotlightTarget && spotlightTarget != o) return;	
 			
-			var pieces = o.split("::")
-			o = pieces[pieces.length-1];
-			
-			o = o.substr(0, MAX_CLASSNAME_LENGTH) + " yelled:  ";
-			while (o.length < MAX_CLASSNAME_LENGTH + 13) {
-				o = " " + o;
+			traceTime();
+			trace("   " + o + " yelled:  " + msg);
+			if (rest.length) {
+				for (var r in rest) trace("                         ...:  "+rest[r]);
+				trace();
 			}
-			trace(o + msg);
 		}
 		
 		// for use at deployment
-		public static function scream(msg, origin) {
+		public static function scream(msg, origin, ...rest) {
 			if (ignoringScreams) return;
-			var o = flash.utils.getQualifiedClassName(origin);
+			var o = convertToName(origin);
 			if (ignoringOrigins.indexOf(o) > -1) return;
 			if (spotlightTarget && spotlightTarget != o) return;
-						
+			
+			traceTime();
+			trace(" " + o + " SCREAMED:  " + msg);
+			if (rest.length) {
+				for (var r in rest) trace("                         ...:  "+rest[r]);
+				trace();
+			}
+		}
+		
+		
+		
+		
+		private static function convertToName(origin) {
+			var o:String;
+			if (origin is String) {
+				o = origin;
+			} else {
+				o = flash.utils.getQualifiedClassName(origin);
+			}
 			var pieces = o.split("::")
 			o = pieces[pieces.length-1];
-			
-			o = o.substr(0, MAX_CLASSNAME_LENGTH) + " SCREAMED:  ";
-			while (o.length < MAX_CLASSNAME_LENGTH + 13) {
+			o = o.substr(0, MAX_CLASSNAME_LENGTH);
+			while (o.length < MAX_CLASSNAME_LENGTH) {
 				o = " " + o;
 			}
-			
-			trace(o + msg);
-		}
-					
+			return o;
+		}	
 		
 		
 	}
@@ -249,5 +289,3 @@ package com.primalscreen.utils {
 
 
 
-
-internal class SingletonBlocker {}
