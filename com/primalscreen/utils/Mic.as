@@ -35,7 +35,7 @@ package com.primalscreen.utils {
 	public class Mic {
 				
 		
-		private const version:String = "beta 0.62";
+		private const version:String = "beta 0.63";
 		
 		private static const DEFAULT_MAX_CLASSNAME_LENGTH:int = 18;
 		
@@ -48,7 +48,7 @@ package com.primalscreen.utils {
 		
 		private static var ignoringOrigins:Array	= [];
 		
-		private static var spotlightTarget;
+		private static var spotlightTarget:*;
 		
 		private static var timerOn:Boolean			= false;
 		private static var lastTimeShown:Number		= -1;
@@ -71,7 +71,7 @@ package com.primalscreen.utils {
 		/*
 		*	Tells Mic to show the timestamp before each trace
 		*/
-		public static function showTimer() {
+		public static function showTimer():void {
 			timerOn = true;
 			if (!incerementerInterval) incerementerInterval = setInterval(incrementTime, 1000);
 		}
@@ -79,7 +79,7 @@ package com.primalscreen.utils {
 		/*
 		*	Tells Mic not to show the timestamp before each trace
 		*/
-		public static function hideTimer() {
+		public static function hideTimer():void {
 			timerOn = false;
 		}
 		
@@ -87,7 +87,7 @@ package com.primalscreen.utils {
 		/*
 		*	Tells Mic to reset the timer back to 0 seconds
 		*/
-		public static function resetTimer() {
+		public static function resetTimer():void {
 			currentTime = 0;
 		}
 		
@@ -98,9 +98,9 @@ package com.primalscreen.utils {
 		*	focus/spotlight both keep everything BUT the selected class's output from showing
 		*/
 		
-		public static function focus(origin) {spotlight(origin);};
-		public static function spotlight(origin) {
-			var o = convertToName(origin);
+		public static function focus(origin:*):void {spotlight(origin);};
+		public static function spotlight(origin:*):void {
+			var o:String = convertToName(origin);
 			spotlightTarget = o;
 			say("Spotlighting "+ origin, "Mic");
 		}
@@ -110,8 +110,8 @@ package com.primalscreen.utils {
 		*	unfocus/unspotlight reverse any focus/spotlight calls
 		*/
 		
-		public static function unfocus() {unspotlight();}
-		public static function unspotlight() {
+		public static function unfocus():void {unspotlight();}
+		public static function unspotlight():void {
 			spotlightTarget = null;
 			say("Unspotlight", "Mic");
 		}
@@ -122,7 +122,7 @@ package com.primalscreen.utils {
 		*	Turns off whisper calls
 		*/
 		
-		public static function ignoreWhispers() {
+		public static function ignoreWhispers():void {
 			ignoringWhispers = true;
 		}
 		
@@ -130,8 +130,8 @@ package com.primalscreen.utils {
 		*	Turns off whisper, and say calls
 		*/
 		
-		public static function ignoreSays() {ignoreSpeech();};
-		public static function ignoreSpeech() {
+		public static function ignoreSays():void {ignoreSpeech();};
+		public static function ignoreSpeech():void {
 			ignoringWhispers = true;
 			ignoringSpeech = true;
 		}
@@ -140,7 +140,7 @@ package com.primalscreen.utils {
 		*	Turns off whisper, say, and yell calls
 		*/
 		
-		public static function ignoreYells() {
+		public static function ignoreYells():void {
 			ignoringWhispers = true;
 			ignoringSpeech = true;
 			ignoringYells = true;
@@ -150,8 +150,8 @@ package com.primalscreen.utils {
 		*	Turns off all output calls
 		*/
 		
-		public static function ignoreAll() {ignoreScreams();};
-		public static function ignoreScreams() {
+		public static function ignoreAll():void {ignoreScreams();};
+		public static function ignoreScreams():void {
 			ignoringWhispers = true;
 			ignoringSpeech = true;
 			ignoringYells = true;
@@ -164,11 +164,11 @@ package com.primalscreen.utils {
 		*	ignore/silence keeps output calls from the selected class from appearing
 		*/
 		
-		public static function ignore(origin) {silence(origin)};
-		public static function silence(origin) {
+		public static function ignore(origin:*):void {silence(origin)};
+		public static function silence(origin:*):void {
 			if (!(origin is Array)) origin = new Array(origin);
-			for (var x in origin) {
-				var o = convertToName(origin[x]);
+			for (var x:String in origin) {
+				var o:String = convertToName(origin[x]);
 				if (ignoringOrigins.indexOf(o) == -1) {
 					ignoringOrigins.push(o);
 				};
@@ -181,11 +181,11 @@ package com.primalscreen.utils {
 		*	reverses an ignore/silence call
 		*/
 		
-		public static function unignore(origin) {unsilence(origin)};
-		public static function unsilence(origin) {
+		public static function unignore(origin:*):void {unsilence(origin)};
+		public static function unsilence(origin:*):void {
 			if (!(origin is Array)) origin = new Array(origin);
-			for (var x in origin) {
-				var o = convertToName(origin[x]);
+			for (var x:String in origin) {
+				var o:String = convertToName(origin[x]);
 				if (ignoringOrigins.indexOf(o) == -1) {
 					ignoringOrigins[ignoringOrigins.indexOf(o)] = null;
 				};
@@ -206,7 +206,7 @@ package com.primalscreen.utils {
 		*/
 		
 		// Shows the timestamp, it it has changed since the last timestamp
-		private static function traceTime() {
+		private static function traceTime():void {
 			if (lastTimeShown != currentTime) {
 				lastTimeShown = currentTime;
 				trace();
@@ -215,16 +215,16 @@ package com.primalscreen.utils {
 		}
 		
 		
-		private static function incrementTime() {
+		private static function incrementTime():void {
 			currentTime++;
 		}
 		
 		
 		
 		// almost never needed. super debug pulling out my hair mode
-		public static function whisper(msg, origin, ...rest) {
+		public static function whisper(msg:*, origin:*, ...rest):void {
 			if (ignoringWhispers) return;
-			var o = convertToName(origin);
+			var o:String = convertToName(origin);
 			if (ignoringOrigins.indexOf(o) > -1) return;
 			if (spotlightTarget && spotlightTarget != o) return;			
 			
@@ -234,13 +234,13 @@ package com.primalscreen.utils {
 			
 		}
 		
-		private static function traceRest(rest) {
+		private static function traceRest(rest:*):void {
 			if (rest.length) {
-				for (var r in rest) {
+				for (var r:String in rest) {
 					if (rest[r] is String) {
 						trace("                         ...:  "+rest[r]);
 					} else if (rest[r] is Array) {
-						for (var s in rest[r]) {
+						for (var s:String in rest[r]) {
 							trace("                         ...:  "+rest[r][s]);
 						}
 					}
@@ -251,9 +251,9 @@ package com.primalscreen.utils {
 		
 		
 		// for use during active development, when you want to know whats going on in the app
-		public static function say(msg, origin, ...rest) {
+		public static function say(msg:*, origin:*, ...rest):void {
 			if (ignoringSpeech) return;
-			var o = convertToName(origin);
+			var o:String = convertToName(origin);
 			if (ignoringOrigins.indexOf(o) > -1) return;
 			if (spotlightTarget && spotlightTarget != o) return;		
 			
@@ -263,9 +263,9 @@ package com.primalscreen.utils {
 		}
 		
 		// for use when testing, just the big picture
-		public static function yell(msg, origin, ...rest) {
+		public static function yell(msg:*, origin:*, ...rest):void {
 			if (ignoringYells) return;
-			var o = convertToName(origin);
+			var o:String = convertToName(origin);
 			if (ignoringOrigins.indexOf(o) > -1) return;
 			if (spotlightTarget && spotlightTarget != o) return;	
 			
@@ -275,9 +275,9 @@ package com.primalscreen.utils {
 		}
 		
 		// for use at deployment
-		public static function scream(msg, origin, ...rest) {
+		public static function scream(msg:*, origin:*, ...rest):void {
 			if (ignoringScreams) return;
-			var o = convertToName(origin);
+			var o:String = convertToName(origin);
 			if (ignoringOrigins.indexOf(o) > -1) return;
 			if (spotlightTarget && spotlightTarget != o) return;
 			
@@ -291,14 +291,14 @@ package com.primalscreen.utils {
 		
 		
 		
-		private static function convertToName(origin) {
+		private static function convertToName(origin:*):String {
 			var o:String;
 			if (origin is String) {
 				o = origin;
 			} else {
 				o = flash.utils.getQualifiedClassName(origin);
 			}
-			var pieces = o.split("::")
+			var pieces:Array = o.split("::")
 			o = pieces[pieces.length-1];
 			o = o.substr(0, classNameLength);
 			while (o.length < classNameLength) {

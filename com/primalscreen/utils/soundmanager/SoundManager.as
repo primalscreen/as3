@@ -45,7 +45,7 @@ package com.primalscreen.utils.soundmanager {
 	
 	public class SoundManager extends EventDispatcher {
 				
-		private const version:String = "beta 0.220";
+		private const version:String = "beta 0.221";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -155,7 +155,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		// ================ Making new sounds functions =====================
 		
-		var soundIDCounter = 0;
+		private var soundIDCounter:int = 0;
 		
 		public function playSound(source:*, parent:* = null, options:Object = null):* {
 			
@@ -167,7 +167,7 @@ package com.primalscreen.utils.soundmanager {
 			}
 			
 			
-			var item = new SMObject();
+			var item:SMObject = new SMObject();
 			
 			// clean up source
 			if (source is Array && source.length == 1) source = source[0];
@@ -266,8 +266,8 @@ package com.primalscreen.utils.soundmanager {
 				loadItem(item);
 			}
 			
-			var parentnamearray = flash.utils.getQualifiedClassName(parent).split("::");
-			var parentname = parentnamearray[parentnamearray.length-1];
+			var parentnamearray:Array = flash.utils.getQualifiedClassName(parent).split("::");
+			var parentname:String = parentnamearray[parentnamearray.length-1];
 			doTrace("New Sound played by " + parentname + ", at filename " + shortSource(item.source), 5);
 			
 			parent = null;
@@ -281,7 +281,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		// Load the sounds
-		private function loadItem(item) {
+		private function loadItem(item:SMObject):void {
 			if (item.source is String) {
 				// just one sound file to play
 				item.source = new Array(item.source);
@@ -324,7 +324,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		// if they don't load, throw the errors, and dispose.
-		private function onLoadError(event:LoaderEvent) { // returns the MP3Loader, not the masterLoader
+		private function onLoadError(event:LoaderEvent):void { // returns the MP3Loader, not the masterLoader
 			var foundItem:Boolean = false;
 			for (var i:Number = 0; i < loadingQueue.length; i++) {
 				if (loadingQueue[i]) {
@@ -347,13 +347,13 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		// if they load ok, send them on!
-		private function onLoadComplete(event:LoaderEvent) {
+		private function onLoadComplete(event:LoaderEvent):void {
 			for (var i:Number = 0; i < loadingQueue.length; i++) {
 				if (loadingQueue[i] && event.target === loadingQueue[i].masterLoader) {
 					// found the loader we were looking for
 					var childloaders:Array = loadingQueue[i].masterLoader.getChildren();
 					var error:Boolean = false;
-					for (var l in childloaders) {
+					for (var l:String in childloaders) {
 						if (childloaders[l].status == LoaderStatus.DISPOSED || childloaders[l].status == LoaderStatus.FAILED) {
 							error = true;
 						}
@@ -378,7 +378,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		// checks to see whether a given item should play based on it's channel and priority
-		private function checkChannelAndPriorities(item:SMObject) {
+		private function checkChannelAndPriorities(item:SMObject):Boolean {
 			if (!item.channel) return true;
 			
 			if (channels.hasOwnProperty(item.channel) && channels[item.channel] && channels[item.channel].id !== item.id) {
@@ -402,8 +402,8 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		private function clearChannel(item:SMObject) {
-			if (!item.channel) return true;
+		private function clearChannel(item:SMObject):void {
+			if (!item.channel) return;
 			if (channels.hasOwnProperty(item.channel) && channels[item.channel]) {
 				callOnCancelForItem(channels[item.channel]);
 				disposeSound(channels[item.channel]);
@@ -415,15 +415,13 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 	
-		private function handleLoadedItem(item:SMObject) {
+		private function handleLoadedItem(item:SMObject):void {
 			if (!item || !item.type) return;
 			if (item.type == SMObject.SINGLE) 					playSingle(item);
 			else if (item.type == SMObject.SINGLE_LOOP) 		playSingleLoop(item);
 			else if (item.type == SMObject.SINGLE_LOOP_GAPLESS) playGapless(item);
 			else if (item.type == SMObject.SEQUENCE) 			playSequence(item);
-			else if (item.type == SMObject.SEQUENCE_LOOP) 		playSequenceLoop(item);
-			
-				
+			else if (item.type == SMObject.SEQUENCE_LOOP) 		playSequenceLoop(item);				
 		}
 		
 		
@@ -451,18 +449,18 @@ package com.primalscreen.utils.soundmanager {
 			testAudioCapabilitySound.load();
 		}
 		
-		private function testAudioCapabilityLoadComplete(e) {
+		private function testAudioCapabilityLoadComplete(e:Error):void {
 			Mic.say("Beginning audio capability test", this);
 			if (LoaderMax.getLoader("testAudioCapability") && LoaderMax.getLoader("testAudioCapability").playSound())
 				testAudioCapabilityCheck();
 		}
 		
-		private function testAudioCapabilityLoadError(e) {
+		private function testAudioCapabilityLoadError(e:Error):void {
 			Mic.yell("Audio capability test failed due to failure to load sound file", this);
 		}
 		
-		private function testAudioCapabilityCheck(count = 0) {
-			var sound = LoaderMax.getLoader("testAudioCapability");
+		private function testAudioCapabilityCheck(count:int = 0):void {
+			var sound:* = LoaderMax.getLoader("testAudioCapability");
 			if (sound && sound.channel && sound.channel.position != 0) {
 				audioCapabilityTested = true;
 				audioCapable = true;
@@ -493,14 +491,14 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		private function playSingle(item:SMObject) {
+		private function playSingle(item:SMObject):void {
 			if (item && item.sequence && item.sequence[0]) {
 				
 				if (!checkChannelAndPriorities(item)) return;
 												
 				item.sequence[0].volume = item.volume;
 				
-				var anon:Function = function() {
+				var anon:Function = function():void {
 					callOnCompleteForItem(item);
 					disposeSound(item);
 				};
@@ -517,7 +515,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		private function playSingleLoop(item:SMObject) {
+		private function playSingleLoop(item:SMObject):void {
 			if (!item.loopCounter) item.loopCounter = 0;
 						
 			if (item.loopCounter == item.loop && item.loop != 0) {
@@ -537,7 +535,7 @@ package com.primalscreen.utils.soundmanager {
 				item.sequence[0].gotoSoundTime(0, true);
 				item.currentLoader = item.sequence[0];
 				
-				var anon:Function = function() {
+				var anon:Function = function():void {
 					playSingleLoop(item);
 				};
 				
@@ -551,7 +549,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		private function playGapless(item:SMObject) {
+		private function playGapless(item:SMObject):void {
 			if (!item.loopCounter) item.loopCounter = 0;
 			
 			if (item.loopCounter == item.loop && item.loop != 0) {
@@ -581,7 +579,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		private function playSequence(item:SMObject) {
+		private function playSequence(item:SMObject):void {
 			if (item && item.sequence && item.sequence[0]) {
 				
 				if (item.paused) return;
@@ -605,7 +603,7 @@ package com.primalscreen.utils.soundmanager {
 						item.sequence[p].gotoSoundTime(0, true);
 						item.currentLoader = item.sequence[p];
 					
-						var anon:Function = function() {
+						var anon:Function = function():void {
 							playSequence(item);
 						};
 					
@@ -620,7 +618,7 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		
-		private function resumeSequence(item:SMObject) {
+		private function resumeSequence(item:SMObject):void {
 			if (item && item.sequence && item.sequence[0]) {
 				if (item.sequence[item.sequencePosition-1] is Number) {
 					// we don't know exactly how far into the delay we were when we paused, so we'll half it and start again
@@ -634,7 +632,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		private function playSequenceLoop(item:SMObject) {
+		private function playSequenceLoop(item:SMObject):void {
 			if (item && item.sequence && item.sequence[0]) {
 				
 				if (item.paused) return;
@@ -667,7 +665,7 @@ package com.primalscreen.utils.soundmanager {
 					item.sequence[p].gotoSoundTime(0, true);
 					item.currentLoader = item.sequence[p];
 					
-					var anon:Function = function() {
+					var anon:Function = function():void {
 						playSequenceLoop(item);
 					};
 					
@@ -679,7 +677,7 @@ package com.primalscreen.utils.soundmanager {
 			}
 		}
 		
-		private function resumeSequenceLoop(item:SMObject) {
+		private function resumeSequenceLoop(item:SMObject):void {
 			if (item && item.sequence && item.sequence[0]) {
 				if (item.sequence[item.sequencePosition-1] is Number) {
 					// we don't know exactly how far into the delay we were when we paused, so we'll half it and start again
@@ -696,9 +694,9 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		private function callOnCompleteForItem(item:SMObject) {
+		private function callOnCompleteForItem(item:SMObject):void {
 			if (item && item.onComplete is Function) {
-				var fn = item.onComplete; // this silly little switcheroo prevents Stack Overflows when the onComplete, onError, or onCancel functions might lead to this sound being cancelled again before the onCancel property has been null, which would then be called again, in a recursive loop
+				var fn:Function = item.onComplete; // this silly little switcheroo prevents Stack Overflows when the onComplete, onError, or onCancel functions might lead to this sound being cancelled again before the onCancel property has been null, which would then be called again, in a recursive loop
 				item.onComplete = null;
 				
 				if (!item.onCompleteParams || !item.onCompleteParams.length) {
@@ -727,18 +725,18 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		private function callOnErrorForItem(item:SMObject) {
+		private function callOnErrorForItem(item:SMObject):void {
 			if (item && item.onError is Function) {
-				var fn = item.onError; // this silly little switcheroo prevents Stack Overflows when the onComplete, onError, or onCancel functions might lead to this sound being cancelled again before the onCancel property has been null, which would then be called again, in a recursive loop
+				var fn:Function = item.onError; // this silly little switcheroo prevents Stack Overflows when the onComplete, onError, or onCancel functions might lead to this sound being cancelled again before the onCancel property has been null, which would then be called again, in a recursive loop
 				item.onError = null;
 				fn();
 				fn = null;
 			}
 		}
 		
-		private function callOnCancelForItem(item:SMObject) {
+		private function callOnCancelForItem(item:SMObject):void {
 			if (item && item.onCancel is Function) {
-				var fn = item.onCancel; // this silly little switcheroo prevents Stack Overflows when the onComplete, onError, or onCancel functions might lead to this sound being cancelled again before the onCancel property has been null, which would then be called again, in a recursive loop
+				var fn:Function = item.onCancel; // this silly little switcheroo prevents Stack Overflows when the onComplete, onError, or onCancel functions might lead to this sound being cancelled again before the onCancel property has been null, which would then be called again, in a recursive loop
 				item.onCancel = null;
 				fn();
 				fn = null;
@@ -751,7 +749,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		private function disposeSound(item:SMObject) {
+		private function disposeSound(item:SMObject):void {
 			
 			if (!item) return;
 			
@@ -765,7 +763,7 @@ package com.primalscreen.utils.soundmanager {
 				try {
 					item.masterLoader.cancel();
 					item.masterLoader.dispose();
-				} catch(e) {}
+				} catch(e:Event) {}
 			}
 			
 			if (item.sequence && item.sequence.length) {
@@ -775,7 +773,7 @@ package com.primalscreen.utils.soundmanager {
 						item.sequence[h].pauseSound();
 						item.sequence[h].dispose();
 						item.sequence[h] = null;
-					} catch(e) {}
+					} catch(e:Event) {}
 				}
 			}
 			
@@ -811,7 +809,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		private function createPauseOn(item:SMObject) {
+		private function createPauseOn(item:SMObject):void {
 			if (item && item.pauseOnTime) {
 				item.pauseOnTimer = setTimeout(hitPauseOn, item.pauseOnTime, item);
 			} else {
@@ -819,7 +817,7 @@ package com.primalscreen.utils.soundmanager {
 			}
 		}
 		
-		private function hitPauseOn(item:SMObject) {
+		private function hitPauseOn(item:SMObject):void {
 			clearTimeout(item.pauseOnTimer);
 			item.pauseOnTimer = 0;
 			loadingQueue.push(item);
@@ -849,7 +847,7 @@ package com.primalscreen.utils.soundmanager {
 				if (onCompleteOrOptions.hasOwnProperty("onError")) options.onError = onCompleteOrOptions.onError;
 			}
 			
-			var preloader = new LoaderMax(options);
+			var preloader:LoaderMax = new LoaderMax(options);
 			if (source is String) source = new Array(source);
 			for (var j:Number = 0; j < source.length; j++) {
 				if (source[j] is String) {
@@ -862,7 +860,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		private function findSoundByID(id:int) {
+		private function findSoundByID(id:int):* {
 			if (theQueue[id]) return theQueue[id];
 			return false;
 		}
@@ -965,7 +963,7 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		
-		public function cancelPauseOn(name:String) {
+		public function cancelPauseOn(name:String):void {
 			doTrace("Cancelling Pause-On by name: " + name, 10);
 			for (var i:Number = 0; i < theQueue.length; i++) {
 				if (theQueue[i] && theQueue[i].pauseOnName && theQueue[i].pauseOnName == name) {
@@ -979,7 +977,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		
 		
-		public function cancelPauseOnsFrom(parent:*) {
+		public function cancelPauseOnsFrom(parent:*):void {
 			if (!(parent is String)) {
 				parent = parent.toString();
 			}
@@ -995,7 +993,7 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 		
-		public function cancelAllPauseOns() {
+		public function cancelAllPauseOns():void {
 			doTrace("Cancelling all Pause-Ons ", 5);
 			for (var i:Number = 0; i < theQueue.length; i++) {
 				if (theQueue[i] && theQueue[i].pauseOnTime)	{
@@ -1101,18 +1099,18 @@ package com.primalscreen.utils.soundmanager {
 			doTrace("Path for ALL sounds set to: " + p, 5);
 		}
 		
-		public function setVolume(vol) {
+		public function setVolume(vol:Number):void {
 			doTrace("Default volume for new sounds set to: " + vol, 5);
 			this.defaultVolume = vol;
 		}
 		
-		private function setDefaultGap(gap:Number) {
+		private function setDefaultGap(gap:Number):void {
 			doTrace("Default overlap between new 'gapless' sounds set to: " + gap, 5);
 			this.defaultGap = gap;
 		}
 		
 		
-		public function mute() {
+		public function mute():void {
 			doTrace("Muting all sound from SoundManager", 5);
 			muted = true;
 			for (var i:Number = 0; i < theQueue.length; i++) {
@@ -1120,7 +1118,7 @@ package com.primalscreen.utils.soundmanager {
 			}
 		}
 		
-		public function unmute() {
+		public function unmute():void {
 			doTrace("Unmuting all sound from SoundManager", 5);
 			muted = false;
 			for (var i:Number = 0; i < theQueue.length; i++) {
@@ -1129,7 +1127,7 @@ package com.primalscreen.utils.soundmanager {
 		}
 		
 
-		public function toggleMute() {
+		public function toggleMute():void {
 			muted = !muted;
 			if (muted) {
 				mute();
@@ -1144,7 +1142,7 @@ package com.primalscreen.utils.soundmanager {
 		
 		// ================= Internal Utility Functions ==================
 		
-		private function shortSource(source:*) {
+		private function shortSource(source:*):* {
 			if (source is Array && source.length) {
 				var shortSource:Array = new Array();
 				for (var i:Number = 0; i < source.length; i++) {
