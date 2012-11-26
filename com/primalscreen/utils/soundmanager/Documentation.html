@@ -73,37 +73,38 @@
 
 
 <div id="container">
-<h1>Primal Screen SoundManager b.128 Documentation</h1>
+<h1>Primal Screen SoundManager b.144 Documentation</h1>
 
 
 <div class="important">
-	<strong>Important:</strong> This version is a bit of a leap forward, with a few steps back. There were vast performance
-	improvements, and a few	extra features were added, but in the meantime, a few of the less used functions went away, 
-	and they're marked in red in this document. Most of them are coming back in a later version, but I wanted to roll 
-	this version out ASAP. If you need the newest version from before this change, look 
-	<a href="https://github.com/primalscreen/as3/commit/6878f8926c4353d742ed0c46d5f40d777eca64f5">here.</a><br /><br />
-	<strong>Format Change: </strong> This version is also the first to support ONLY MP3 format. If you can't use MP3, you're 
-	out of luck. Sorry, but I had to consolidate things down to one format, for performance, and MP3 is the obvious choice.
+	<strong>Important:</strong> There was a significant rewrite after version b.117 that changed a lot of the API and removed support
+	for any sound formats other than MP3. If you need the last version before the changes, it's
+	<a href="https://github.com/primalscreen/as3/commit/6878f8926c4353d742ed0c46d5f40d777eca64f5">here,</a> but I strongly suggest
+	upgrading, as there are huge performance, compatibility, and functionality gains, and the upgrade path isn't too rough-- should be doable
+	with a good find &amp; replace and a few tweaks here and there. 
 </div>
 
 
 <h2 style="margin-top:-20px;">Installation</h2>
 <p>
-	You'll notice that there are Actionscript classes from two separate companies in this download. The Primal Screen classes
-	are mine, I wrote them, and they're ope source, MIT licensed. The Greensock classes are from 
-	<a href="http://www.greensock.com"> Greensock</a> and <b>carry their own, separate 
-	<a href="http://www.greensock.com/licensing/">license model</a> that you must agree to before using SoundManager.</b> 
+	First of all, you'll need <a href="http://www.greensock.com">Greensock's</a> Loading and Tweening classes. Go get 'em yourself, I'm not 
+	here to spoon feed you. Greensock has their own, separate <a href="http://www.greensock.com/licensing/">license model</a> that you must 
+	agree independent of SoundManager's MIT license.
 </p>
-<p>Put the <span class="fakepre">com.primalscreen.utils.soundmanager.SoundManager</span> package and the Greensock 
-LoaderMax package files in your classpath. Keep the <span class="fakepre">com.primalscreen</span>... and 
-<span class="fakepre">com.greensock</span>... folder structures.</p>
+<p>
+	Put the <span class="fakepre">com.primalscreen.utils.soundmanager.SoundManager</span> package and the Greensock LoaderMax package files 
+	in your classpath. Keep the <span class="fakepre">com.primalscreen</span>... and <span class="fakepre">com.greensock</span>... folder 
+	structures.
+</p>
 
 <p>
 	NOTE: I've only included a subset of Greensock's classes that are used by SoundManager. If you're using any of their 
 	other classes, just use your own full set of greensock classes.
 </p>
 
-<p>Then instantiate like this (it's a singleton, you can't just use <span class="fakepre">new SoundManager()</span>):</p>
+<p>
+	Then instantiate like this (it's a singleton, you can't just use <span class="fakepre">new SoundManager()</span>):
+</p>
 <pre>
 // in the package
 import com.primalscreen.utils.soundmanager.SoundManager;
@@ -113,6 +114,13 @@ var soundManager:com.primalscreen.utils.soundmanager.SoundManager;
 
 // in your constructor
 soundManager = SoundManager.getInstance();
+
+// in functions
+soundManager.doWhatever();
+
+// OR if you don't want to keep a reference for your instance of SoundManager
+// you can skip the bit in the constructor and call it like this every time
+SoundManager.getInstance().doWhatever();
 </pre>
 
 
@@ -136,8 +144,6 @@ soundManager = SoundManager.getInstance();
 		 Defaults to <span class="fakepre">SoundManager.NORMAL</span>.</li>
 	<li><strong>trace</strong> <em>(String):</em> When in verbose mode, this is what prepends everything that SoundManager traces. Default 
 	is <span class="fakepre">"SoundManager: "</span>.</li>
-	<li><strong>queueInterval</strong> <em>(Number):</em> <span class="deprecated">DEPRECATED</span></li>
-	<li><strong>samePriorityInterrupts</strong> <em>(Boolean):</em> <span class="deprecated">DEPRECATED</span>
 </li>
 	
 	
@@ -152,31 +158,35 @@ soundManager = SoundManager.getInstance({verbose: true, trace:"SoundManager says
 
 <h3>playSound()</h3>
 <p>Now that you have a singleton instance called of SoundManager called soundManager, let's play a sound:</p>
-<pre>soundManager.playSound("assets/testaudio.mp3");</pre>
+<pre>soundManager.playSound("assets/testaudio.mp3", this);</pre>
 <p>This is the simplest example. It loads the mp3 and plays it when ready. playSound has three arguments. In order they are:</p>
 
 <ul>
 	<li><strong>Source</strong> <em>(String/Array):</em> the filename, or array of filenames you want to load 
 	and play. You can also put numbers in the array, and the numbers will interpretted as gaps between the sounds, in milliseconds.</li>
-	<li><strong>Caller</strong> <em>(Object):</em> Usually <span class="fakepre">this</span>, this reference is used later when you're garbage collecting.
-	It's a reference to the class that called the <span class="fakepre">playSound()</span>, so that if you ever want to destroy the app/game/class later, and you want to kill
-	all sounds associated with it, you can use the <span class="fakepre">stopSoundsFrom(this)</span> function, to stop all sounds that were set up by <span class="fakepre">this</span> class.</li>
-	<li><strong>Options</strong> <em>(Object):</em> Like SoundManager's <span class="fakepre">getInstance()</span> function, <span class="fakepre">playSound()</span>
+	
+	<li><strong>Caller/Group</strong> <em>(DisplayObject/String):</em> We use this reference to group sounds. 
+	If you pass in a reference to <span class="fakepre">this</span>, then you're telling SoundManager to put the sound in the group with all 
+	other sounds called by <span class="fakepre">this</span> class. That means, when you are destroying the class that called for this sound, you
+	would tell SoundManager to <i>stop all sounds from</i> <span class="fakepre">this</span>.
+	Alternately, you can make up a group name, like "game", or "menu", and pass it in as a string at this point, and then refer to the group
+	again by that string later.
+	
+	<li><strong>Options</strong> <em>(Object) (Optional):</em> Like SoundManager's <span class="fakepre">getInstance()</span> function, <span class="fakepre">playSound()</span>
 	 can recieve an options object. See below for the available options.</li>
-
 </ul>
 
 <p><span class="fakepre">playSound()</span> has an options object in it's third parameter, here are the available options.</p>
 <ul>
-	<li><strong>event</strong> <em>(String):</em> <span class="deprecated">DEPRECATED</span>. See onComplete</li>
-	<li><strong>onComplete</strong> <em>(Function):</em> The public function, in the calling class, that should be called when the sound finishes playing.</li>
+	<li><strong>onComplete</strong> <em>(Function):</em> A function to be called when the sound/sequence finishes playing.</li>
 	<li><strong>onCompleteParams</strong> <em>(Array):</em> An array of parameters that are sent to the onComplete function.</li>
+	<li><strong>onError</strong> <em>(Function):</em> A function to be called when the source sound(s) fail to load.</li>
+	<li><strong>onCancel</strong> <em>(Function):</em> A function to be called when the sound is canceled for any reason. That includes all the stop functions in SoundManager and when the sound is canceled in favour of another sound playing on the same channel.</li>
 	<li><strong>channel*</strong> <em>(String):</em> The name of the channel you want to play the sound on. *Read more about what a "channel" is, below.
 	These aren't real SoundChannels, think of it like if there's a sound playing on channel A, and you play 
 	another one on that same channel, it will stop the first sound and play the second. </li>
 	<li><strong>priority</strong> <em>(Number):</em> Sets the priority level of the sound. If another sound exists on the same channel,
 	the one with the higher priority will play, cutting off the existing sound if necessary.</li>
-	<li><strong>eventOnInterrupt</strong> <em>(Boolean):</em> <span class="deprecated">DEPRECATED</span></li>
 	<li><strong>dontInterruptSelf</strong> <em>(Boolean):</em> If set to true, when the same sound is requested on the same channel, it will be ignored. Default: false.</li>
 	<li><strong>volume</strong> <em>(Number):</em> 0 is muted, 1 is normal volume. Defaults to 1, unless you've already used setVolume();</li>
 	<li><strong>loop</strong> <em>(Number):</em> Number of times to loop the sound. 0 is infinite, 1 is default.</li>
@@ -288,55 +298,55 @@ var mySound = soundManager.playSound("filename.mp3");
 </pre> 
 <ul>
 	<li>
-		<span class="fakepre">setPath("asset/sounds/");</span><br>
+		<span class="fakepre">setPath(String);</span><br>
 		Sets the location, relative to the document root, of the files you're trying to load. Make sure you leave a 
 		<span class="fakepre">/</span> at the end. <b>Be carfeul. This applies to your whole app, because SoundManager is a singleton. So if you're
 		collaborating with others on a large app and they're using SoundManager too, don't go changing the path, because it applies to everyone.</b>
 	</li>
 	<li>
-		<span class="fakepre">setDefaultGap(100);</span><br>
+		<span class="fakepre">setDefaultGap(int);</span><br>
 		Changes the default setting for the overlap time when using the <span class="fakepre">gapless</span> option. This may differ depending on your
 		MP3 encoder. <b>Don't forget, SoundManager is a Singleton, so this is for everything in the whole app.</b>
 	</li>
 	<li>
-		<span class="fakepre">setVolume(0.8);</span><br>
+		<span class="fakepre">setVolume(Number);</span><br>
 		Sets the default volume for all <em>new</em> sounds. 0 = mute, 1 = 100%. <b>Again, this is for everything in the app.</b>
 	</li>
 	<li class="important">
-		<span class="fakepre">adjustVolume(id, volume);</span><br>
+		<span class="fakepre">adjustVolume(int, Number);</span><br>
 		This function has been temporarily removed from SoundManager. It will get added back in, in a later version. 
 		Sets the volume of a given sound, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
 	</li>
 	<li>
-		<span class="fakepre">isPlaying(id);</span><br>
+		<span class="fakepre">isPlaying(int);</span><br>
 		Checks whether a sound is playing, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
 	</li>
 	<li>
-		<span class="fakepre">isPaused(id);</span><br>
+		<span class="fakepre">isPaused(int);</span><br>
 		Checks whether a sound is paused, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
 	</li>
 	<li>
-		<span class="fakepre">isLoading(id);</span><br>
+		<span class="fakepre">isLoading(int);</span><br>
 		Checks whether a sound is loading, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
 	</li>
 	<li>
-		<span class="fakepre">soundStatus(id);</span><br>
+		<span class="fakepre">soundStatus(int);</span><br>
 		Returns a string of a sound's status, or false if the sound doesn't exist, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
 	</li>
 	<li>
-		<span class="fakepre">exists(id);</span><br>
+		<span class="fakepre">exists(int);</span><br>
 		Returns a boolean of whether the sound (still) exists, by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
 	</li>
 	<li>
-		<span class="fakepre">stopSound(id);</span><br>
+		<span class="fakepre">stopSound(int);</span><br>
 		Stops the selected sound by it's ID (which is returned by <span class="fakepre">playSound()</span>, as mentioned above).
 	</li>
 	<li>
-		<span class="fakepre">pauseSound(id);</span><br>
+		<span class="fakepre">pauseSound(int);</span><br>
 		Pauses the selected sound by it's ID.
 	</li>
 	<li>
-		<span class="fakepre">resumeSound(id);</span><br>
+		<span class="fakepre">resumeSound(int);</span><br>
 		Resumes the selected sound by it's ID.
 	</li>
 	<li>
@@ -352,41 +362,40 @@ var mySound = soundManager.playSound("filename.mp3");
 		Resume all sounds. Every single one. 
 	</li>
 	<li>
-		<span class="fakepre">stopChannel("channel_name");</span><br>
+		<span class="fakepre">stopChannel(String);</span><br>
 		Stops all sounds that are playing on the given channel.
 	</li>
 	<li>
-		<span class="fakepre">pauseChannel("channel_name");</span><br>
+		<span class="fakepre">pauseChannel(String);</span><br>
 		Pauses all sounds that are playing on the given channel.
 	</li>
 	<li>
-		<span class="fakepre">resumeChannel("channel_name");</span><br>
+		<span class="fakepre">resumeChannel(String);</span><br>
 		Resume all sounds that are paused on the given channel.
 	</li>
 
 	<li>
-		<span class="fakepre">stopSoundsFrom(this);</span><br>
-		Stops all sounds that were created by the class/object/movieclip given in the first parameter. There isn't 
-		much reason to use anything but <span class="fakepre">this</span> here. When you pass in <span class="fakepre">this</span> 
-		as the second parameter for <span class="fakepre">playSound()</span>, SoundManager keeps track of which class originally called 
-		the <span class="fakepre">playSound()</span> function. This means that if you call <span class="fakepre">stopSoundsFrom(this)</span> 
-		later from the same class, it will stop all sounds called from the class.
+		<span class="fakepre">stopSoundsFrom(DisplayObject/String);</span><br>
+		Stops all sounds in the group defined by the first parameter. If you used <span class="fakepre">this</span> as the second parameter
+		in <span class="fakepre">playSound()</span>, then using <span class="fakepre">this</span> here will stop all sounds created by that same calling class. Alternately,
+		if you used a String to define a custom group name in the second parameter in <span class="fakepre">playSound()</span>, then using that same String here will stop
+		all sounds made with that group name.
 	</li>
 	<li>
-		<span class="fakepre">pauseSoundsFrom(this);</span><br>
+		<span class="fakepre">pauseSoundsFrom(DisplayObject/String);</span><br>
 		In case you haven't already guessed, this function has similar functionality to 
 		<span class="fakepre">stopSoundsFrom(this)</span>, but for pausing. Succinctly, pauses all paused sounds from the same caller.
 	</li>
 	<li>
-		<span class="fakepre">resumeSoundsFrom(this);</span><br>
+		<span class="fakepre">resumeSoundsFrom(DisplayObject/String);</span><br>
 		Resumes all paused sounds from the same caller.
 	</li>
 	<li>
-		<span class="fakepre">cancelPauseOn("pause_on_name");</span><br>
+		<span class="fakepre">cancelPauseOn(String);</span><br>
 		Cancels pause-ons that were set up with this name.
 	</li>
 	<li>
-		<span class="fakepre">cancelPauseOnsFrom(this);</span><br>
+		<span class="fakepre">cancelPauseOnsFrom(DisplayObject/String);</span><br>
 		Cancels pause-ons that were set up by the same calling class/object/movieclip.
 	</li>
 	<li>
@@ -394,17 +403,17 @@ var mySound = soundManager.playSound("filename.mp3");
 		Cancels all pause-ons. 
 	</li>
 	<li>
-		<span class="fakepre">muteChannel("channel_name");</span><br>
+		<span class="fakepre">muteChannel(String);</span><br>
 		Mutes all sounds on the given channel.
 	</li>
 	<li>
-		<span class="fakepre">unmuteChannel("channel_name");</span><br>
+		<span class="fakepre">unmuteChannel(String);</span><br>
 		Opposite of <span class="fakepre">muteChannel()</span>.
 	</li>
 	<li>
-		<span class="fakepre">preload("filename", myPreloadCompleteFunction);</span> or<br>
-		<span class="fakepre">preload(["filename1", "filename2"], myPreloadCompleteFunction);</span><br>
-		Where second argument is a public function in the calling class which is called when the files are preloaded.
+		<span class="fakepre">preload(String, Function);</span> or<br>
+		<span class="fakepre">preload(Array of Strings, Function);</span><br>
+		Preloads file(s) in the first parameter, then calls the function in the second parameter when complete. 
 	</li>
 </ul>
 
@@ -446,7 +455,7 @@ function killPauseOn(e) {
 
 <p>The MIT License</p>
 
-<p>Copyright (c) 2010 Primal Screen Inc.</p>
+<p>Copyright (c) 2012 Primal Screen Inc.</p>
 
 <p>Permission is hereby granted, free of charge, to any person obtaining a copy
 	of this software and associated documentation files (the "Software"), to deal
@@ -466,8 +475,7 @@ function killPauseOn(e) {
 	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 	THE SOFTWARE.</p>
 <p>
-	Greensock has their own license for their LoaderMax classes that I use in 
-	SoundManager. See their licensing terms <a href="http://www.greensock.com/licensing/">here</a>.
+	Greensock's LoaderMax classes are required by SoundManager, see their licensing terms <a href="http://www.greensock.com/licensing/">here</a>.
 </p>
 </div>
 

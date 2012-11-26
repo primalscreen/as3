@@ -6,7 +6,7 @@ package com.primalscreen.utils.soundmanager {
 	
 	The MIT License
 	
-	Copyright (c) 2010 Primal Screen Inc.
+	Copyright (c) 2012 Primal Screen Inc.
 	
 	Permission is hereby granted, free of charge, to any person obtaining a copy
 	of this software and associated documentation files (the "Software"), to deal
@@ -28,23 +28,14 @@ package com.primalscreen.utils.soundmanager {
 	
 	*/
 	import com.greensock.loading.core.LoaderCore;
+	import com.greensock.loading.*;
+	import com.greensock.TweenMax;
+	
+	import flash.media.SoundChannel;
+	
 
 	public class SMObject {
-		
-		//statuses
-		public static const NEW:String 				= "new";
-		public static const LOADING:String 			= "loading";
-		public static const PAUSEON:String 			= "pauseon";
-		public static const PAUSEONREADY:String 	= "pauseonready";
-		public static const READY:String 			= "ready";
-		public static const WAITING:String 			= "waiting";
-		public static const GAPLESSWAITING:String 	= "gaplesswaiting";
-		public static const PLAYING:String 			= "playing";
-		public static const PAUSED:String 			= "paused";
-		public static const PLAYED:String 			= "played";
-		public static const DISPOSABLE:String 		= "disposable";
-		public static const DISPOSED:String 		= "disposed";
-		
+				
 		//types
 		public static const SINGLE:String 				= "single";
 		public static const SINGLE_LOOP:String 			= "single-loop";
@@ -53,35 +44,36 @@ package com.primalscreen.utils.soundmanager {
 		public static const SEQUENCE_LOOP:String 		= "sequence-loop";
 		
 		
-		
-		
 		public var id					:int;
 		public var status				:String;
 		public var type					:String;
 		public var source				:*;
 		public var parent				:String;
 		public var priority				:int;
-		public var loader				:LoaderCore;
-		public var loadername			:String;
-		public var altloader			:LoaderCore;
-		public var altloadername		:String;
-		public var gaplessTimer			:String;
-		public var gaplessTimerLength	:String;
-		public var gaplessFirstPhase	:Boolean;
+		public var masterLoader			:LoaderMax;
+		public var sequence				:Array;
 		public var sequencePosition		:int;
+		public var currentLoader		:MP3Loader;
+		public var paused				:Boolean;
+		public var gaplessTimer			:TweenMax; // its a TweenMax.delayedCall()
+		public var gaplessTimerLength	:Number;
 		public var volume				:Number;
 		public var originalvolume		:Number; // when muted, we save the vol here
 		public var channel				:String;
-		public var loop 				:Number; // the original loop instruction
-		public var loopCounter 			:Number; // the current loop iteration
+		public var loop 				:int; // the original loop instruction
+		public var loopCounter 			:int; // the current loop iteration
 		public var dontInterruptSelf	:Boolean;
 		public var onComplete 			:Function;
+		public var onCancel 			:Function;
+		public var onError	 			:Function;
 		public var onCompleteParams 	:Array;
 		public var pauseOnTimer			:Number;
 		public var pauseOnTime			:Number;
 		public var pauseOnName			:String;
 		public var gapless				:Boolean;
 		public var gap					:Number;
+		public var useForCapabilityTest	:Boolean = false;
+		
 		
 				
 		

@@ -35,9 +35,11 @@ package com.primalscreen.utils {
 	public class Mic {
 				
 		
-		private const version:String = "beta 0.5";
+		private const version:String = "beta 0.62";
 		
-		private static const MAX_CLASSNAME_LENGTH = 18;
+		private static const DEFAULT_MAX_CLASSNAME_LENGTH:int = 18;
+		
+		private static var classNameLength:int = 18;
 		
 		private static var ignoringWhispers:Boolean	= false;
 		private static var ignoringSpeech:Boolean 	= false;
@@ -53,6 +55,16 @@ package com.primalscreen.utils {
 		private static var currentTime:Number		= 0;
 		
 		private static var incerementerInterval:int;
+		
+		
+		
+		
+		/*
+		*	Tells Mic at what length to cut off the classnames
+		*/
+		public static function setClassNameLength(l:int):void {
+			classNameLength = l;
+		}
 		
 		
 		
@@ -89,7 +101,8 @@ package com.primalscreen.utils {
 		public static function focus(origin) {spotlight(origin);};
 		public static function spotlight(origin) {
 			var o = convertToName(origin);
-			spotlightTarget = o;	
+			spotlightTarget = o;
+			say("Spotlighting "+ origin, "Mic");
 		}
 		
 		
@@ -97,11 +110,10 @@ package com.primalscreen.utils {
 		*	unfocus/unspotlight reverse any focus/spotlight calls
 		*/
 		
-		public static function unfocus() {
-			spotlightTarget = null;
-		}
+		public static function unfocus() {unspotlight();}
 		public static function unspotlight() {
 			spotlightTarget = null;
+			say("Unspotlight", "Mic");
 		}
 		
 		
@@ -154,10 +166,14 @@ package com.primalscreen.utils {
 		
 		public static function ignore(origin) {silence(origin)};
 		public static function silence(origin) {
-			var o = convertToName(origin);
-			if (ignoringOrigins.indexOf(o) == -1) {
-				ignoringOrigins.push(o);
-			};			
+			if (!(origin is Array)) origin = new Array(origin);
+			for (var x in origin) {
+				var o = convertToName(origin[x]);
+				if (ignoringOrigins.indexOf(o) == -1) {
+					ignoringOrigins.push(o);
+				};
+			}
+			say("Silencing "+ origin, "Mic");
 		}
 		
 		
@@ -167,10 +183,14 @@ package com.primalscreen.utils {
 		
 		public static function unignore(origin) {unsilence(origin)};
 		public static function unsilence(origin) {
-			var o = convertToName(origin);
-			if (ignoringOrigins.indexOf(o) == -1) {
-				ignoringOrigins[ignoringOrigins.indexOf(o)] = null;
-			};			
+			if (!(origin is Array)) origin = new Array(origin);
+			for (var x in origin) {
+				var o = convertToName(origin[x]);
+				if (ignoringOrigins.indexOf(o) == -1) {
+					ignoringOrigins[ignoringOrigins.indexOf(o)] = null;
+				};
+			}		
+			say("Unsilencing "+ origin, "Mic");
 		}
 		
 		
@@ -210,11 +230,25 @@ package com.primalscreen.utils {
 			
 			traceTime();
 			trace("" + o + " whispered:  " + msg);
+			traceRest(rest);
+			
+		}
+		
+		private static function traceRest(rest) {
 			if (rest.length) {
-				for (var r in rest) trace("                         ...:  "+rest[r]);
+				for (var r in rest) {
+					if (rest[r] is String) {
+						trace("                         ...:  "+rest[r]);
+					} else if (rest[r] is Array) {
+						for (var s in rest[r]) {
+							trace("                         ...:  "+rest[r][s]);
+						}
+					}
+				}
 				trace();
 			}
 		}
+		
 		
 		// for use during active development, when you want to know whats going on in the app
 		public static function say(msg, origin, ...rest) {
@@ -225,10 +259,7 @@ package com.primalscreen.utils {
 			
 			traceTime();
 			trace("     " + o + " said:  " + msg);
-			if (rest.length) {
-				for (var r in rest) trace("                         ...:  "+rest[r]);
-				trace();
-			}
+			traceRest(rest);
 		}
 		
 		// for use when testing, just the big picture
@@ -240,10 +271,7 @@ package com.primalscreen.utils {
 			
 			traceTime();
 			trace("   " + o + " yelled:  " + msg);
-			if (rest.length) {
-				for (var r in rest) trace("                         ...:  "+rest[r]);
-				trace();
-			}
+			traceRest(rest);
 		}
 		
 		// for use at deployment
@@ -254,11 +282,10 @@ package com.primalscreen.utils {
 			if (spotlightTarget && spotlightTarget != o) return;
 			
 			traceTime();
+			trace("======================================================");
 			trace(" " + o + " SCREAMED:  " + msg);
-			if (rest.length) {
-				for (var r in rest) trace("                         ...:  "+rest[r]);
-				trace();
-			}
+			traceRest(rest);
+			trace("======================================================");
 		}
 		
 		
@@ -273,8 +300,8 @@ package com.primalscreen.utils {
 			}
 			var pieces = o.split("::")
 			o = pieces[pieces.length-1];
-			o = o.substr(0, MAX_CLASSNAME_LENGTH);
-			while (o.length < MAX_CLASSNAME_LENGTH) {
+			o = o.substr(0, classNameLength);
+			while (o.length < classNameLength) {
 				o = " " + o;
 			}
 			return o;
