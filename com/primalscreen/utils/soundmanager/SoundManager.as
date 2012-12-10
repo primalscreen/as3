@@ -45,7 +45,7 @@ package com.primalscreen.utils.soundmanager {
 	
 	public class SoundManager extends EventDispatcher {
 				
-		private const version:String = "beta 0.221";
+		private const version:String = "beta 0.222";
 		
 		// Singleton crap
 		private static var instance:SoundManager;
@@ -1047,7 +1047,7 @@ package com.primalscreen.utils.soundmanager {
 			if (!(i is SMObject)) i = findSoundByID(i);
 			if (!(i is SMObject)) return;
 			doTrace("Muting sound: " + shortSource(i.source), 5);
-			i.originalvolume = i.volume;
+			//i.originalvolume = i.volume;
 			i.volume = 0;
 			if (i.currentLoader) i.currentLoader.volume = i.volume;
 		}
